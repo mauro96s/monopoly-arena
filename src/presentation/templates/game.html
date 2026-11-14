@@ -1,0 +1,1505 @@
+{% extends "base.html" %}
+
+{% block title %}Partida {{ game.code }} — Monopoly Arena{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Estilo auténtico para tarjetas de título de propiedad de Monopoly */
+  .title-deed-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .title-deed-card:not(.disabled-card):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.15);
+  }
+  .disabled-card {
+    opacity: 0.45;
+    cursor: not-allowed !important;
+    filter: grayscale(40%);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+{% endblock %}
+
+{% block header_actions %}
+  <div class="flex items-center gap-2">
+    <a
+      href="/"
+      class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+    >
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+      <span>Lobby</span>
+    </a>
+
+    <!-- Botón de Finalizar Partida -->
+    <button
+      id="btn-finish-game"
+      type="button"
+      onclick="confirmFinishGame()"
+      class="text-xs font-heading font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800/80 bg-white dark:bg-slate-800 shadow-xs"
+      title="Cerrar la partida y calcular el podio de ganadores"
+    >
+      <i data-lucide="flag" class="w-3.5 h-3.5 text-red-500"></i>
+      <span>Finalizar Partida</span>
+    </button>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header Táctico: Código de Partida, Indicador de Turno Activo y Control Rápido -->
+  <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/90 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-4 transition-colors">
+    
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center font-heading font-extrabold text-lg shadow-md shadow-emerald-600/20">
+        🎲
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl sm:text-2xl font-heading font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
+            {{ game.code }}
+          </h1>
+          <span id="game-status-badge" class="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+            {{ game.status }}
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+          Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong>
+        </p>
+      </div>
+    </div>
+
+    <!-- Banner Central: Turno Actual Estricto -->
+    <div id="active-turn-banner" class="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-xs">
+      <span class="flex h-3 w-3 relative">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+      </span>
+      <div>
+        <span class="block text-[10px] font-mono uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider">
+          Turno Activo
+        </span>
+        <span id="active-player-name-banner" class="font-heading font-bold text-sm text-slate-900 dark:text-white">
+          Cargando jugador...
+        </span>
+      </div>
+      <button
+        type="button"
+        id="btn-open-active-turn"
+        class="ml-2 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
+      >
+        <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+        <span>Jugar Turno</span>
+      </button>
+    </div>
+
+    <!-- Botón Manual: Pasar Turno (Casillas Neutrales) -->
+    <button
+      id="advance-turn-btn"
+      type="button"
+      class="py-2 px-3.5 rounded-xl bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95"
+      title="Pasar al siguiente jugador solo si cayó en casilla neutral (sin compra ni pago)"
+    >
+      <span>Pasar Turno</span>
+      <i data-lucide="chevron-right" class="w-4 h-4"></i>
+    </button>
+  </div>
+
+  <!-- Cuadrícula de Jugadores (Cards Tácticas de 1-Toque) -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+        <i data-lucide="users" class="w-3.5 h-3.5 text-slate-400"></i>
+        <span>Jugadores en Mesa (Orden Estricto de Turnos)</span>
+      </h2>
+      <span class="text-xs text-slate-400">Solo el jugador con turno activo puede realizar jugadas</span>
+    </div>
+
+    <div id="players-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Inyectado y actualizado dinámicamente -->
+    </div>
+  </div>
+
+  <!-- Libro Contable en Vivo (Historial de Auditoría) -->
+  <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200/90 dark:border-slate-700/80 transition-colors space-y-3">
+    <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/60">
+      <div class="flex items-center gap-2">
+        <i data-lucide="book-open" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+        <h2 class="text-sm font-heading font-bold text-slate-900 dark:text-white">
+          Libro Contable en Vivo
+        </h2>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+          Auditoría Inmutable
+        </span>
+      </div>
+      <span class="text-[11px] font-mono text-slate-400">Actualizado al instante</span>
+    </div>
+
+    <div id="ledger-container" class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+      <div class="py-6 text-center text-slate-400 text-xs">Cargando registros...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL CONTEXTUAL TÁCTICO: 1 SOLO TOQUE (JUGADOR ACTIVO)                   -->
+<!-- ========================================================================= -->
+<div id="action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm hidden animate-fade-in">
+  <div class="relative w-full max-w-4xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh] overflow-hidden">
+    
+    <!-- Modal Header -->
+    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40">
+      <div class="flex items-center gap-3">
+        <span id="modal-player-token" class="text-3xl">🎩</span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="modal-player-name" class="font-heading font-extrabold text-lg text-slate-900 dark:text-white">
+              Jugador
+            </h3>
+            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+              TURNO ACTIVO
+            </span>
+          </div>
+          <p class="text-xs font-mono text-slate-500 dark:text-slate-400">
+            Efectivo: <strong id="modal-player-money" class="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">$0</strong>
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onclick="closeActionModal()"
+        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Modal Tabs con Iconos Lucide -->
+    <div class="flex items-center gap-1.5 px-4 pt-3 border-b border-slate-100 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
+      <button
+        type="button"
+        id="tab-btn-buy"
+        onclick="switchModalTab('buy')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="home" class="w-3.5 h-3.5"></i>
+        <span>Comprar Propiedad</span>
+      </button>
+      <button
+        type="button"
+        id="tab-btn-rent"
+        onclick="switchModalTab('rent')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="coins" class="w-3.5 h-3.5"></i>
+        <span>Pagar Renta</span>
+      </button>
+      <button
+        type="button"
+        id="tab-btn-build"
+        onclick="switchModalTab('build')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="building" class="w-3.5 h-3.5"></i>
+        <span>Construir Casas / Hoteles</span>
+      </button>
+      <button
+        type="button"
+        id="tab-btn-bank"
+        onclick="switchModalTab('bank')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
+        <span>Banca, Suerte & Arca</span>
+      </button>
+      <button
+        type="button"
+        id="tab-btn-jail"
+        onclick="switchModalTab('jail')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+        <span>Cárcel</span>
+      </button>
+    </div>
+
+    <!-- Modal Body: Scrollable -->
+    <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+
+      <!-- ============================================== -->
+      <!-- TAB 1: COMPRAR PROPIEDAD (CARDS ESTILO TÍTULO) -->
+      <!-- ============================================== -->
+      <div id="modal-panel-buy" class="modal-panel space-y-4">
+        <!-- Paso 1: Filtro de Grupos de Color con Iconos -->
+        <div>
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            1. Selecciona un grupo de propiedades:
+          </span>
+          <div id="color-group-pills" class="flex flex-wrap gap-2 pb-1">
+            <!-- Inyectado dinámicamente con iconos Lucide -->
+          </div>
+        </div>
+
+        <!-- Paso 2: Grilla de Máximo 4 Columnas con Cards Estilo Título de Monopoly Clásico -->
+        <div>
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            2. Toca la propiedad disponible para comprarla de inmediato:
+          </span>
+          <div id="available-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- TAB 2: PAGAR RENTA (SELECCIONAR RIVAL Y CARD)  -->
+      <!-- ============================================== -->
+      <div id="modal-panel-rent" class="modal-panel space-y-4 hidden">
+        <div>
+          <!-- Paso 1: Seleccionar Rival -->
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            1. ¿En la propiedad de qué rival caíste?
+          </span>
+          <div id="rivals-selector-container" class="flex flex-wrap gap-2 pb-2">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Selector de Dados para Servicios -->
+        <div id="utility-dice-box" class="hidden p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+          <span class="font-medium text-slate-700 dark:text-slate-300">Tirada de dados para Servicios (Luz/Agua):</span>
+          <div class="flex gap-1.5">
+            <button type="button" onclick="setDiceRoll(4)" class="dice-btn px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-mono font-bold">4</button>
+            <button type="button" onclick="setDiceRoll(7)" class="dice-btn px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-mono font-bold">7 (Def)</button>
+            <button type="button" onclick="setDiceRoll(10)" class="dice-btn px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-mono font-bold">10</button>
+            <button type="button" onclick="setDiceRoll(12)" class="dice-btn px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-mono font-bold">12</button>
+          </div>
+        </div>
+
+        <!-- Paso 2: Cards de Propiedades del Rival con Renta Calculada -->
+        <div>
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            2. Toca la propiedad para pagar la renta calculada automáticamente:
+          </span>
+          <div id="rival-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- TAB 3: CONSTRUIR CASAS Y HOTELES (MONOPOLIOS)  -->
+      <!-- ============================================== -->
+      <div id="modal-panel-build" class="modal-panel space-y-4 hidden">
+        <div>
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            Monopolios Completos Disponibles para Edificar:
+          </span>
+          <!-- Selector de monopolios disponibles -->
+          <div id="monopoly-selector-pills" class="flex flex-wrap gap-2 pb-2">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+        <div>
+          <div id="build-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- TAB 4: MÓDULO COMPLETO: BANCA, SUERTE, ARCA COMUNAL & HIPOTECAS -->
+      <!-- ============================================================== -->
+      <div id="modal-panel-bank" class="modal-panel space-y-5 hidden">
+        
+        <!-- Categoría 1: Cobros e Ingresos de Cartas Clásicas -->
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block mb-2 flex items-center gap-1.5">
+            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
+            <span>Cobros e Ingresos Oficiales (Arca Comunal & Suerte)</span>
+          </span>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <button type="button" onclick="executeBankAction('PASS_GO')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>🚩 Salida</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$200</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('BANK_ERROR')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Error de Banca</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$200</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('TAX_REFUND')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Devolución Impuesto</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$20</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('INHERITANCE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Heredas</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('STOCK_SALE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Venta Acciones</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$50</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('CONSULTANT_FEE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Consultor</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$25</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('BEAUTY_CONTEST')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Concurso</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('LIFE_INSURANCE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Seguro Vencido</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('DIVIDENDS')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Dividendos</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$50</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('BUILDING_LOAN')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
+              <span>Préstamo Construc.</span>
+              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$150</strong>
+            </button>
+          </div>
+        </div>
+
+        <!-- Categoría 2: Pagos y Multas Clásicas -->
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-400 block mb-2 flex items-center gap-1.5">
+            <i data-lucide="arrow-up-circle" class="w-4 h-4"></i>
+            <span>Pagos, Impuestos y Multas Oficiales</span>
+          </span>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <button type="button" onclick="executeBankAction('INCOME_TAX')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Impuesto Ingresos</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$200</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('LUXURY_TAX')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Impuesto de Lujo</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$100</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('DOCTOR_FEE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Honorarios Médico</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$50</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('HOSPITAL_FEE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Hospital</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$100</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('SCHOOL_FEES')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Colegiatura</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$50</strong>
+            </button>
+            <button type="button" onclick="executeBankAction('SPEEDING_FINE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
+              <span>Exceso Velocidad</span>
+              <strong class="font-mono text-red-700 dark:text-red-300">-$15</strong>
+            </button>
+          </div>
+        </div>
+
+        <!-- Categoría 3: Reparaciones Generales y Dinámicas de Grupo -->
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 block mb-2 flex items-center gap-1.5">
+            <i data-lucide="wrench" class="w-4 h-4"></i>
+            <span>Reparaciones de Edificios & Dinámica entre Jugadores</span>
+          </span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <button type="button" onclick="executeBankAction('REPAIRS_CHEST')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-left border border-amber-300/80 dark:border-amber-800 transition-all">
+              <strong class="block font-heading">Reparaciones de Arca Comunal</strong>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">$25 por casa y $100 por hotel (cálculo automático)</span>
+            </button>
+            <button type="button" onclick="executeBankAction('REPAIRS_CHANCE')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-left border border-amber-300/80 dark:border-amber-800 transition-all">
+              <strong class="block font-heading">Reparaciones de Suerte</strong>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">$40 por casa y $115 por hotel (cálculo automático)</span>
+            </button>
+            <button type="button" onclick="executeBankAction('BIRTHDAY')" class="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-600 text-left border border-purple-200 dark:border-purple-800 transition-all">
+              <strong class="block font-heading">🎂 ¡Es tu Cumpleaños!</strong>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">Cobras $10 a cada uno de los demás jugadores</span>
+            </button>
+            <button type="button" onclick="executeBankAction('CHARITY')" class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-left border border-blue-200 dark:border-blue-800 transition-all">
+              <strong class="block font-heading">🎭 Beneficencia / Ópera</strong>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">Pagas $50 a cada uno de los demás jugadores</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Categoría 4: Hipotecas -->
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-2 flex items-center gap-1.5">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+            <span>Hipotecar / Deshipotecar Propiedades</span>
+          </span>
+          <div id="mortgage-properties-list" class="space-y-2">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============================================== -->
+      <!-- TAB 5: GESTIÓN OFICIAL DE CÁRCEL (3 TURNOS)    -->
+      <!-- ============================================== -->
+      <div id="modal-panel-jail" class="modal-panel space-y-4 hidden">
+        <div>
+          <div id="jail-status-box" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 mb-4">
+            <!-- Inyectado dinámicamente con control estricto de 3 turnos -->
+          </div>
+
+          <div id="jail-actions-box" class="space-y-2.5">
+            <!-- Inyectado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/40 flex justify-between items-center text-xs">
+      <span class="text-slate-400">Monopoly Arena • Ejecución con 1 solo toque</span>
+      <button
+        type="button"
+        onclick="closeActionModal()"
+        class="py-1.5 px-4 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-300 transition-colors"
+      >
+        Cerrar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE PODIO FINAL: FINALIZAR PARTIDA Y DECLARAR GANADOR                -->
+<!-- ========================================================================= -->
+<div id="podium-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md hidden animate-fade-in">
+  <div class="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden">
+    
+    <div class="p-6 text-center border-b border-slate-100 dark:border-slate-800 bg-gradient-to-b from-emerald-500/10 to-transparent">
+      <span class="text-5xl block mb-2">🏆</span>
+      <h2 class="text-2xl font-heading font-extrabold text-slate-900 dark:text-white">
+        ¡Partida Finalizada!
+      </h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        Podio oficial calculado por Patrimonio Neto Total (Efectivo + Propiedades + Edificios)
+      </p>
+    </div>
+
+    <div id="podium-content" class="p-6 overflow-y-auto space-y-4">
+      <!-- Inyectado dinámicamente con rankings -->
+    </div>
+
+    <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-3">
+      <button
+        type="button"
+        onclick="closePodiumModal()"
+        class="py-2 px-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs"
+      >
+        Ver Tablero
+      </button>
+      <a
+        href="/"
+        class="py-2 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs shadow-md shadow-emerald-600/30 flex items-center gap-1.5"
+      >
+        <span>Volver al Lobby</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const GAME_ID = {{ game.id }};
+  let gameState = null;
+  let playersData = [];
+  let boardTiles = [];
+  let propertyStates = [];
+  let transactionsData = [];
+  let activeDiceRoll = 7;
+  let selectedBuyGroup = 'BROWN';
+  let selectedRentRivalId = null;
+  let selectedMonopolyGroup = null;
+
+  // Catálogo oficial de grupos de Monopoly con Iconos Lucide
+  const OFFICIAL_GROUPS = [
+    { key: 'BROWN', name: 'Marrón', badge: 'bg-[#8B4513] text-white', hex: '#8B4513', icon: 'home' },
+    { key: 'LIGHT_BLUE', name: 'Celeste', badge: 'bg-[#38BDF8] text-slate-900', hex: '#38BDF8', icon: 'cloud' },
+    { key: 'PINK', name: 'Rosa', badge: 'bg-[#EC4899] text-white', hex: '#EC4899', icon: 'heart' },
+    { key: 'ORANGE', name: 'Naranja', badge: 'bg-[#F97316] text-white', hex: '#F97316', icon: 'flame' },
+    { key: 'RED', name: 'Rojo', badge: 'bg-[#EF4444] text-white', hex: '#EF4444', icon: 'building' },
+    { key: 'YELLOW', name: 'Amarillo', badge: 'bg-[#EAB308] text-slate-900', hex: '#EAB308', icon: 'sun' },
+    { key: 'GREEN', name: 'Verde', badge: 'bg-[#16A34A] text-white', hex: '#16A34A', icon: 'trees' },
+    { key: 'DARK_BLUE', name: 'Azul', badge: 'bg-[#1D4ED8] text-white', hex: '#1D4ED8', icon: 'crown' },
+    { key: 'RAILROAD', name: 'Estaciones', badge: 'bg-slate-700 text-white', hex: '#334155', icon: 'train' },
+    { key: 'UTILITY', name: 'Servicios', badge: 'bg-cyan-700 text-white', hex: '#0e7490', icon: 'zap' },
+  ];
+
+  function getActivePlayer() {
+    if (!playersData || playersData.length === 0 || !gameState) return null;
+    return playersData[gameState.current_player_index % playersData.length];
+  }
+
+  // ========================================================
+  // CARGA PRINCIPAL DE DATOS EN TIEMPO REAL
+  // ========================================================
+  async function refreshGameData() {
+    try {
+      const [gameRes, playersRes, tilesRes, propsRes, txRes] = await Promise.all([
+        fetch(`/api/v1/games/${GAME_ID}`),
+        fetch(`/api/v1/games/${GAME_ID}/players`),
+        fetch(`/api/v1/games/${GAME_ID}/board-tiles`),
+        fetch(`/api/v1/games/${GAME_ID}/properties`),
+        fetch(`/api/v1/games/${GAME_ID}/transactions`),
+      ]);
+
+      gameState = await gameRes.json();
+      playersData = await playersRes.json();
+      boardTiles = await tilesRes.json();
+      propertyStates = await propsRes.json();
+      transactionsData = await txRes.json();
+
+      renderHeaderBanner();
+      renderPlayersGrid();
+      renderLedger();
+
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    } catch (e) {
+      console.error('Error refrescando partida:', e);
+    }
+  }
+
+  // ========================================================
+  // RENDER: HEADER Y BANNER DE TURNO ACTIVO
+  // ========================================================
+  function renderHeaderBanner() {
+    document.getElementById('turn-round-number').textContent = `#${gameState.current_turn}`;
+    document.getElementById('game-status-badge').textContent = gameState.status;
+
+    const activePlayer = getActivePlayer();
+    if (activePlayer) {
+      const bannerText = document.getElementById('active-player-name-banner');
+      bannerText.innerHTML = `${getTokenEmoji(activePlayer.token)} <strong>${activePlayer.name}</strong> ($${activePlayer.money.toLocaleString()})`;
+
+      document.getElementById('btn-open-active-turn').onclick = () => {
+        openActiveTurnModal();
+      };
+    }
+  }
+
+  // ========================================================
+  // RENDER: TARJETAS DE JUGADORES (ORDEN ESTRICTO DE LOBBY)
+  // ========================================================
+  function renderPlayersGrid() {
+    const grid = document.getElementById('players-grid');
+    grid.innerHTML = '';
+
+    const activeIdx = gameState.current_player_index % playersData.length;
+
+    playersData.forEach((player, idx) => {
+      const isActive = idx === activeIdx;
+      const owned = propertyStates.filter(p => p.owner_id === player.id);
+
+      const card = document.createElement('div');
+      card.className = `player-card relative bg-white dark:bg-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm border transition-all flex flex-col justify-between ${
+        isActive
+          ? 'border-emerald-500 dark:border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20 dark:bg-emerald-950/20 shadow-emerald-500/10'
+          : 'border-slate-200/90 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600'
+      }`;
+
+      // Insignias de propiedades
+      let propsBadgesHtml = '<span class="text-xs text-slate-400 italic">Sin propiedades</span>';
+      if (owned.length > 0) {
+        propsBadgesHtml = owned.map(prop => {
+          const t = boardTiles.find(tile => tile.tile_id === prop.tile_id);
+          if (!t) return '';
+          const grp = OFFICIAL_GROUPS.find(g => g.key === t.group) || { badge: 'bg-slate-600 text-white' };
+          let improvement = '';
+          if (prop.hotels_count > 0) improvement = ' 🏨';
+          else if (prop.houses_count > 0) improvement = ` 🏠${prop.houses_count}`;
+          if (prop.is_mortgaged) improvement = ' 🔒';
+
+          return `<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 rounded-md font-bold shadow-xs ${grp.badge}" title="${t.name}">${t.name.substring(0, 9)}${improvement}</span>`;
+        }).join('');
+      }
+
+      card.innerHTML = `
+        <div>
+          <!-- Header de Tarjeta -->
+          <div class="flex items-start justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">${getTokenEmoji(player.token)}</span>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <h3 class="font-heading font-bold text-base text-slate-900 dark:text-white leading-tight">
+                    ${player.name}
+                  </h3>
+                  ${isActive ? '<span class="text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500 text-white">ES SU TURNO</span>' : ''}
+                </div>
+                <span class="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase">
+                  #${idx + 1} • ${player.token}
+                </span>
+              </div>
+            </div>
+
+            ${player.in_jail ? `
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 border border-red-300 dark:border-red-800">
+                ⛓️ Cárcel (${player.jail_turns}/3)
+              </span>
+            ` : ''}
+          </div>
+
+          <!-- Saldo Financiero -->
+          <div class="py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700/50 mb-3 flex items-baseline justify-between">
+            <span class="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 font-semibold">Saldo</span>
+            <span class="font-mono font-extrabold text-2xl text-emerald-600 dark:text-emerald-400 tracking-tight">
+              $${player.money.toLocaleString()}
+            </span>
+          </div>
+
+          <!-- Títulos y Propiedades -->
+          <div class="mb-4">
+            <span class="text-[10px] font-mono uppercase text-slate-400 dark:text-slate-500 block mb-1.5 font-semibold">
+              Títulos en Cartera (${owned.length})
+            </span>
+            <div class="flex flex-wrap gap-1 min-h-[26px]">
+              ${propsBadgesHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- Botón Táctico: Si es su turno, abre modal; si no, indica bloqueo -->
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-700/50">
+          ${isActive ? `
+            <button
+              type="button"
+              onclick="openActiveTurnModal()"
+              class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm shadow-emerald-600/30 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+            >
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>Jugar Turno</span>
+            </button>
+          ` : `
+            <button
+              type="button"
+              onclick="showToast('Es el turno de ${getActivePlayer() ? getActivePlayer().name : 'otro jugador'}', 'error')"
+              class="w-full py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 font-heading font-medium text-xs uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-1"
+            >
+              <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+              <span>Esperando Turno</span>
+            </button>
+          `}
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+  }
+
+  function getTokenEmoji(token) {
+    const map = {
+      'Sombrero': '🎩',
+      'Auto': '🚗',
+      'Perro': '🐕',
+      'Bota': '👞',
+      'Barco': '🚢',
+      'Gato': '🐱',
+    };
+    return map[token] || '🎮';
+  }
+
+  // ========================================================
+  // RENDER: LIBRO CONTABLE EN VIVO
+  // ========================================================
+  function renderLedger() {
+    const container = document.getElementById('ledger-container');
+    if (!transactionsData || transactionsData.length === 0) {
+      container.innerHTML = '<div class="py-6 text-center text-slate-400 text-xs">Sin transacciones aún.</div>';
+      return;
+    }
+
+    container.innerHTML = transactionsData.map(t => `
+      <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 text-xs flex items-center justify-between gap-3 animate-fade-in">
+        <div>
+          <span class="font-mono text-[10px] text-slate-400 mr-2">Turno #${t.turn_number}</span>
+          <span class="text-slate-800 dark:text-slate-200 font-medium">${t.description}</span>
+        </div>
+        <span class="font-mono font-bold text-sm text-slate-900 dark:text-white shrink-0">
+          $${t.amount.toLocaleString()}
+        </span>
+      </div>
+    `).join('');
+  }
+
+  // ========================================================
+  // CONTROL DEL MODAL CONTEXTUAL (SOLO JUGADOR ACTIVO)
+  // ========================================================
+  function openActiveTurnModal() {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    if (gameState.status === 'FINISHED') {
+      showToast('La partida ya ha finalizado.', 'error');
+      return;
+    }
+
+    syncModalHeader(activePlayer);
+    renderBuyColorPills();
+    renderBuyPropertiesGrid(selectedBuyGroup);
+    renderRentRivalsSelector();
+    renderBuildMonopolySelector();
+    renderMortgageProperties();
+    renderJailPanel();
+
+    document.getElementById('action-modal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeActionModal() {
+    document.getElementById('action-modal').classList.add('hidden');
+  }
+
+  function syncModalHeader(player) {
+    document.getElementById('modal-player-token').textContent = getTokenEmoji(player.token);
+    document.getElementById('modal-player-name').textContent = player.name;
+    document.getElementById('modal-player-money').textContent = `$${player.money.toLocaleString()}`;
+  }
+
+  function switchModalTab(tabName) {
+    const tabs = ['buy', 'rent', 'build', 'bank', 'jail'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const panel = document.getElementById(`modal-panel-${t}`);
+
+      if (t === tabName) {
+        btn.className = 'modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 whitespace-nowrap flex items-center gap-1.5';
+        panel.classList.remove('hidden');
+      } else {
+        btn.className = 'modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5';
+        panel.classList.add('hidden');
+      }
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // ========================================================
+  // TAB 1: COMPRAR PROPIEDAD (CARDS ESTILO TÍTULO CLÁSICO)
+  // ========================================================
+  function renderBuyColorPills() {
+    const container = document.getElementById('color-group-pills');
+    container.innerHTML = OFFICIAL_GROUPS.map(grp => {
+      const isSelected = grp.key === selectedBuyGroup;
+      return `
+        <button
+          type="button"
+          onclick="selectBuyColorGroup('${grp.key}')"
+          class="px-2.5 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+            isSelected
+              ? 'ring-2 ring-emerald-500 shadow-sm border-transparent ' + grp.badge
+              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 opacity-80 hover:opacity-100'
+          }"
+        >
+          <i data-lucide="${grp.icon}" class="w-3.5 h-3.5"></i>
+          <span>${grp.name}</span>
+        </button>
+      `;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function selectBuyColorGroup(groupKey) {
+    selectedBuyGroup = groupKey;
+    renderBuyColorPills();
+    renderBuyPropertiesGrid(groupKey);
+  }
+
+  function renderBuyPropertiesGrid(groupKey) {
+    const grid = document.getElementById('available-properties-grid');
+    const ownedTileIds = new Set(propertyStates.filter(p => p.owner_id !== null).map(p => p.tile_id));
+    const groupTiles = boardTiles.filter(t => t.group === groupKey && t.can_be_purchased);
+    const activePlayer = getActivePlayer();
+
+    if (groupTiles.length === 0) {
+      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4">No hay casillas disponibles en este grupo.</p>';
+      return;
+    }
+
+    const grp = OFFICIAL_GROUPS.find(g => g.key === groupKey) || { hex: '#475569', badge: 'bg-slate-700 text-white' };
+
+    grid.innerHTML = groupTiles.map(t => {
+      const isOwned = ownedTileIds.has(t.tile_id);
+      const canAfford = activePlayer && activePlayer.money >= t.price;
+
+      if (isOwned) {
+        return `
+          <div class="title-deed-card disabled-card border-2 border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900 text-center shadow-xs">
+            <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-wider uppercase">
+              OCUPADA
+            </div>
+            <div class="p-2 space-y-1">
+              <div class="font-heading font-bold text-xs uppercase text-slate-400 line-clamp-1">${t.name}</div>
+              <div class="font-mono text-xs text-slate-400 line-through">$${t.price}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div
+          onclick="${canAfford ? `executeBuyProperty('${t.tile_id}', '${t.name}', ${t.price})` : `showToast('Fondos insuficientes', 'error')`}"
+          class="title-deed-card border-2 border-slate-900 dark:border-slate-600 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm cursor-pointer hover:border-emerald-500 transition-all ${!canAfford ? 'opacity-60' : ''}"
+        >
+          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
+            TÍTULO
+          </div>
+          <div class="p-2 space-y-1">
+            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+            <div class="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400">$${t.price}</div>
+            <div class="text-[9px] text-slate-400 font-mono">Renta: $${t.base_rent}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function executeBuyProperty(tileId, tileName, price) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/buy-property`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: activePlayer.id,
+          tile_id: tileId,
+          auto_advance_turn: true,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al comprar');
+      }
+
+      showToast(`¡${activePlayer.name} compró ${tileName} por $${price}! Turno avanzado.`);
+      closeActionModal();
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
+  // TAB 2: PAGAR RENTA (SELECCIONAR RIVAL Y CARD)
+  // ========================================================
+  function renderRentRivalsSelector() {
+    const container = document.getElementById('rivals-selector-container');
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    const rivals = playersData.filter(p => p.id !== activePlayer.id);
+
+    if (rivals.length === 0) {
+      container.innerHTML = '<p class="text-xs text-slate-400 italic">No hay rivales en la partida.</p>';
+      return;
+    }
+
+    if (!selectedRentRivalId || !rivals.some(r => r.id === selectedRentRivalId)) {
+      selectedRentRivalId = rivals[0].id;
+    }
+
+    container.innerHTML = rivals.map(r => {
+      const isSelected = r.id === selectedRentRivalId;
+      return `
+        <button
+          type="button"
+          onclick="selectRentRival(${r.id})"
+          class="px-3 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+            isSelected
+              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-sm'
+              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-100'
+          }"
+        >
+          <span>${getTokenEmoji(r.token)}</span>
+          <span>${r.name}</span>
+        </button>
+      `;
+    }).join('');
+
+    renderRivalPropertiesGrid(selectedRentRivalId);
+  }
+
+  function selectRentRival(rivalId) {
+    selectedRentRivalId = rivalId;
+    renderRentRivalsSelector();
+  }
+
+  function setDiceRoll(val) {
+    activeDiceRoll = val;
+    document.querySelectorAll('.dice-btn').forEach(btn => {
+      btn.classList.toggle('bg-emerald-600', btn.textContent.includes(val.toString()));
+      btn.classList.toggle('text-white', btn.textContent.includes(val.toString()));
+    });
+    if (selectedRentRivalId) {
+      renderRivalPropertiesGrid(selectedRentRivalId);
+    }
+  }
+
+  function renderRivalPropertiesGrid(rivalId) {
+    const grid = document.getElementById('rival-properties-grid');
+    const rival = playersData.find(p => p.id === rivalId);
+    if (!rival) return;
+
+    const rivalProps = propertyStates.filter(p => p.owner_id === rivalId);
+
+    // Si tiene servicios, mostrar selector de dados
+    const hasUtility = rivalProps.some(p => p.tile_id === 'ELECTRIC_COMPANY' || p.tile_id === 'WATER_WORKS');
+    document.getElementById('utility-dice-box').classList.toggle('hidden', !hasUtility);
+
+    if (rivalProps.length === 0) {
+      grid.innerHTML = `<p class="text-xs text-slate-400 italic col-span-4">${rival.name} aún no posee títulos de propiedad.</p>`;
+      return;
+    }
+
+    grid.innerHTML = rivalProps.map(prop => {
+      const t = boardTiles.find(tile => tile.tile_id === prop.tile_id);
+      if (!t) return '';
+      const grp = OFFICIAL_GROUPS.find(g => g.key === t.group) || { hex: '#475569' };
+      const rentAmount = calculateClientRent(t, prop, activeDiceRoll);
+
+      let improvementLabel = 'Renta Base';
+      if (prop.hotels_count > 0) improvementLabel = '🏨 Hotel';
+      else if (prop.houses_count > 0) improvementLabel = `🏠 ${prop.houses_count} Casas`;
+      else if (isGroupMonopoly(rivalId, t.group)) improvementLabel = 'Monopolio x2';
+
+      return `
+        <div
+          onclick="executePayRent('${prop.tile_id}', '${t.name}', ${rentAmount}, '${rival.name}')"
+          class="title-deed-card border-2 border-red-500 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm cursor-pointer hover:border-red-600 transition-all"
+        >
+          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
+            PAGAR
+          </div>
+          <div class="p-2 space-y-1">
+            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+            <div class="font-mono font-extrabold text-sm text-red-600 dark:text-red-400">$${rentAmount}</div>
+            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">${improvementLabel}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function isGroupMonopoly(ownerId, groupKey) {
+    const allInGroup = boardTiles.filter(t => t.group === groupKey && t.can_be_purchased);
+    const owned = propertyStates.filter(p => p.owner_id === ownerId && allInGroup.some(t => t.tile_id === p.tile_id));
+    return owned.length === allInGroup.length && allInGroup.length > 1;
+  }
+
+  function calculateClientRent(tileDef, propState, diceRoll) {
+    if (propState.is_mortgaged) return 0;
+
+    if (propState.hotels_count > 0 && tileDef.rent_matrix && tileDef.rent_matrix.length >= 6) {
+      return tileDef.rent_matrix[5];
+    }
+    if (propState.houses_count > 0 && tileDef.rent_matrix && tileDef.rent_matrix.length > propState.houses_count) {
+      return tileDef.rent_matrix[propState.houses_count];
+    }
+
+    if (tileDef.tile_type === 'RAILROAD') {
+      const railroads = propertyStates.filter(p => p.owner_id === propState.owner_id && p.tile_id.startsWith('RAILROAD_')).length;
+      return 25 * Math.pow(2, Math.min(Math.max(railroads, 1), 4) - 1);
+    }
+
+    if (tileDef.tile_type === 'UTILITY') {
+      const utilities = propertyStates.filter(p => p.owner_id === propState.owner_id && (p.tile_id === 'ELECTRIC_COMPANY' || p.tile_id === 'WATER_WORKS')).length;
+      return (diceRoll || 7) * (utilities >= 2 ? 10 : 4);
+    }
+
+    if (isGroupMonopoly(propState.owner_id, tileDef.group)) {
+      return tileDef.base_rent * 2;
+    }
+
+    return tileDef.base_rent;
+  }
+
+  async function executePayRent(tileId, tileName, rentAmount, ownerName) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/pay-rent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payer_player_id: activePlayer.id,
+          tile_id: tileId,
+          dice_roll: activeDiceRoll,
+          auto_advance_turn: true,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al pagar renta');
+      }
+
+      showToast(`¡${activePlayer.name} pagó $${rentAmount} a ${ownerName}! Turno avanzado.`);
+      closeActionModal();
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
+  // TAB 3: CONSTRUIR CASAS Y HOTELES (SOLO MONOPOLIOS)
+  // ========================================================
+  function renderBuildMonopolySelector() {
+    const container = document.getElementById('monopoly-selector-pills');
+    const grid = document.getElementById('build-properties-grid');
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    // Detectar monopolios que posee el jugador activo
+    const ownedProps = propertyStates.filter(p => p.owner_id === activePlayer.id);
+    const ownedGroups = OFFICIAL_GROUPS.filter(g => g.key !== 'RAILROAD' && g.key !== 'UTILITY').filter(grp => {
+      const allInGroup = boardTiles.filter(t => t.group === grp.key && t.can_be_purchased);
+      const owned = ownedProps.filter(p => allInGroup.some(t => t.tile_id === p.tile_id));
+      return owned.length === allInGroup.length && allInGroup.length > 0;
+    });
+
+    if (ownedGroups.length === 0) {
+      container.innerHTML = '';
+      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4 py-4 text-center">Aún no posees ningún monopolio completo. Completa todas las calles de un color para poder construir casas y hoteles.</p>';
+      return;
+    }
+
+    if (!selectedMonopolyGroup || !ownedGroups.some(g => g.key === selectedMonopolyGroup)) {
+      selectedMonopolyGroup = ownedGroups[0].key;
+    }
+
+    container.innerHTML = ownedGroups.map(grp => {
+      const isSelected = grp.key === selectedMonopolyGroup;
+      return `
+        <button
+          type="button"
+          onclick="selectBuildMonopolyGroup('${grp.key}')"
+          class="px-3 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+            isSelected
+              ? 'ring-2 ring-emerald-500 shadow-sm border-transparent ' + grp.badge
+              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'
+          }"
+        >
+          <i data-lucide="${grp.icon}" class="w-3.5 h-3.5"></i>
+          <span>${grp.name}</span>
+        </button>
+      `;
+    }).join('');
+
+    renderBuildPropertiesCards(selectedMonopolyGroup);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function selectBuildMonopolyGroup(groupKey) {
+    selectedMonopolyGroup = groupKey;
+    renderBuildMonopolySelector();
+  }
+
+  function renderBuildPropertiesCards(groupKey) {
+    const grid = document.getElementById('build-properties-grid');
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    const groupTiles = boardTiles.filter(t => t.group === groupKey && t.can_be_purchased);
+    const grp = OFFICIAL_GROUPS.find(g => g.key === groupKey) || { hex: '#475569' };
+
+    grid.innerHTML = groupTiles.map(t => {
+      const prop = propertyStates.find(p => p.tile_id === t.tile_id);
+      const houses = prop ? prop.houses_count : 0;
+      const hotels = prop ? prop.hotels_count : 0;
+      const isMaxed = hotels >= 1;
+      const canAfford = activePlayer.money >= (t.house_cost || 0);
+
+      let statusHtml = '<span class="text-slate-400 font-mono text-[10px]">Sin mejoras</span>';
+      if (hotels > 0) statusHtml = '<span class="text-amber-500 font-bold text-xs">🏨 Hotel</span>';
+      else if (houses > 0) statusHtml = `<span class="text-emerald-600 font-bold text-xs">${'🏠'.repeat(houses)} (${houses}/4)</span>`;
+
+      return `
+        <div class="title-deed-card border-2 border-slate-900 dark:border-slate-600 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm">
+          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
+            CONSTRUIR
+          </div>
+          <div class="p-2 space-y-1.5">
+            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+            <div class="h-5 flex items-center justify-center">${statusHtml}</div>
+            ${!isMaxed ? `
+              <button
+                type="button"
+                onclick="executeBuildHouse('${t.tile_id}', '${t.name}', ${t.house_cost})"
+                ${!canAfford ? 'disabled' : ''}
+                class="w-full py-1.5 px-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
+                  canAfford
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs active:scale-95'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                }"
+              >
+                ${houses === 4 ? `+ Hotel ($${t.house_cost})` : `+ Casa ($${t.house_cost})`}
+              </button>
+            ` : `
+              <div class="py-1 px-2 rounded-lg bg-amber-100 text-amber-800 text-[10px] font-bold">Máximo</div>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function executeBuildHouse(tileId, tileName, cost) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/build-house`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: activePlayer.id, tile_id: tileId })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al construir');
+      }
+
+      showToast(`¡Mejora edificada en ${tileName} por $${cost}!`);
+      await refreshGameData();
+      renderBuildPropertiesCards(selectedMonopolyGroup);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
+  // TAB 4: BANCA, SUERTE & HIPOTECAS
+  // ========================================================
+  async function executeBankAction(actionType, customAmount = null, description = null) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/bank`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: activePlayer.id,
+          action_type: actionType,
+          custom_amount: customAmount,
+          description: description,
+          auto_advance_turn: true,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error en operación bancaria');
+      }
+
+      showToast(`Operación bancaria registrada. Turno avanzado.`);
+      closeActionModal();
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  function renderMortgageProperties() {
+    const container = document.getElementById('mortgage-properties-list');
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    const owned = propertyStates.filter(p => p.owner_id === activePlayer.id);
+    if (owned.length === 0) {
+      container.innerHTML = '<p class="text-xs text-slate-400 italic">No posees propiedades para hipotecar.</p>';
+      return;
+    }
+
+    container.innerHTML = owned.map(prop => {
+      const t = boardTiles.find(tile => tile.tile_id === prop.tile_id);
+      if (!t) return '';
+      const mortgageVal = Math.floor(t.price / 2);
+      const unmortgageCost = Math.floor(mortgageVal * 1.1);
+
+      return `
+        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+          <div>
+            <span class="font-bold text-slate-900 dark:text-white">${t.name}</span>
+            <span class="text-[10px] text-slate-400 block">${prop.is_mortgaged ? '🔒 Hipotecada' : 'Libre'}</span>
+          </div>
+
+          <button
+            type="button"
+            onclick="executeMortgage('${t.tile_id}')"
+            class="py-1.5 px-3 rounded-lg text-xs font-heading font-bold transition-all ${
+              prop.is_mortgaged
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-amber-600 hover:bg-amber-700 text-white'
+            }"
+          >
+            ${prop.is_mortgaged ? `Deshipotecar (-$${unmortgageCost})` : `Hipotecar (+$${mortgageVal})`}
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function executeMortgage(tileId) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/mortgage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id: activePlayer.id, tile_id: tileId })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error en hipoteca');
+      }
+
+      showToast(`Hipoteca actualizada.`);
+      await refreshGameData();
+      renderMortgageProperties();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
+  // TAB 5: GESTIÓN DE CÁRCEL (CONTROL ESTRICTO DE 3 TURNOS)
+  // ========================================================
+  function renderJailPanel() {
+    const statusBox = document.getElementById('jail-status-box');
+    const actionsBox = document.getElementById('jail-actions-box');
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    if (activePlayer.in_jail) {
+      const mustPay = activePlayer.jail_turns >= 3;
+
+      statusBox.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">⛓️</span>
+          <div>
+            <h4 class="font-heading font-bold text-sm text-red-600 dark:text-red-400">
+              ${activePlayer.name} está en Prisión
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Ronda <strong class="text-slate-800 dark:text-slate-200">${activePlayer.jail_turns}</strong> de 3 turnos permitidos.
+              ${mustPay ? '<span class="block text-red-600 font-bold mt-0.5">¡3er turno cumplido! Las reglas oficiales exigen pagar los $50 de fianza o usar carta para continuar.</span>' : ''}
+            </p>
+          </div>
+        </div>
+      `;
+
+      actionsBox.innerHTML = `
+        <button
+          type="button"
+          onclick="executeJailAction('PAY_FINE')"
+          class="w-full p-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-sm active:scale-95"
+        >
+          <span>Pagar Fianza de Salida</span>
+          <span class="font-mono font-bold">$50</span>
+        </button>
+
+        <button
+          type="button"
+          onclick="executeJailAction('USE_CARD')"
+          class="w-full p-3 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-sm active:scale-95"
+        >
+          <span>Usar Carta "Salga Libre de la Cárcel"</span>
+          <span>Gratis</span>
+        </button>
+
+        ${!mustPay ? `
+          <button
+            type="button"
+            onclick="executeJailAction('STAY')"
+            class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all text-center active:scale-95"
+          >
+            Cumplir Turno en Prisión (Pasar Ronda)
+          </button>
+        ` : `
+          <button
+            disabled
+            class="w-full p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700/40 text-slate-400 text-xs font-bold cursor-not-allowed text-center"
+          >
+            Límite de 3 turnos alcanzado (Fianza Obligatoria)
+          </button>
+        `}
+      `;
+    } else {
+      statusBox.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🕊️</span>
+          <div>
+            <h4 class="font-heading font-bold text-sm text-emerald-600 dark:text-emerald-400">
+              ${activePlayer.name} está Libre
+            </h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              El jugador se encuentra circulando con normalidad por el tablero.
+            </p>
+          </div>
+        </div>
+      `;
+
+      actionsBox.innerHTML = `
+        <button
+          type="button"
+          onclick="executeJailAction('GO_TO_JAIL')"
+          class="w-full p-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+        >
+          <span>🚨 ¡Enviar a la Cárcel! (Casilla 30 o 3 Dobles)</span>
+        </button>
+      `;
+    }
+  }
+
+  async function executeJailAction(action) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/jail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: activePlayer.id,
+          action: action,
+          auto_advance_turn: true,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error en acción de cárcel');
+      }
+
+      showToast(`Estado de cárcel actualizado. Turno avanzado.`);
+      closeActionModal();
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
+  // PASAR TURNO MANUAL (CASILLAS NEUTRALES)
+  // ========================================================
+  document.getElementById('advance-turn-btn').addEventListener('click', async () => {
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/advance-turn`, { method: 'POST' });
+      if (!res.ok) throw new Error('Error al avanzar turno');
+      showToast(`Turno avanzado al siguiente jugador.`);
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  });
+
+  // ========================================================
+  // FINALIZAR PARTIDA Y PODIO DE GANADORES
+  // ========================================================
+  async function confirmFinishGame() {
+    if (!confirm('¿Estás seguro de que deseas finalizar la partida? Se calculará el patrimonio neto total de cada jugador y se anunciará al ganador.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/finish`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al finalizar partida');
+      }
+
+      const podiumData = await res.json();
+      renderPodiumModal(podiumData);
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  function renderPodiumModal(podiumData) {
+    const container = document.getElementById('podium-content');
+    const winner = podiumData.rankings[0];
+
+    container.innerHTML = `
+      <!-- Ganador Destacado -->
+      <div class="p-5 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-yellow-500/10 to-transparent border border-amber-400/50 text-center space-y-2">
+        <span class="text-4xl">👑</span>
+        <h3 class="font-heading font-extrabold text-xl text-slate-900 dark:text-white">
+          ${winner.token} ${winner.name}
+        </h3>
+        <span class="text-xs font-mono uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold block">
+          Campeón de Monopoly Arena
+        </span>
+        <div class="font-mono font-extrabold text-3xl text-emerald-600 dark:text-emerald-400">
+          $${winner.net_worth.toLocaleString()}
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 font-mono">Patrimonio Neto Final</p>
+      </div>
+
+      <!-- Tabla de Clasificación Completa -->
+      <div class="space-y-2 pt-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+          Tabla de Clasificación Oficial:
+        </span>
+        ${podiumData.rankings.map(r => `
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center font-mono font-extrabold ${r.rank === 1 ? 'bg-amber-400 text-slate-900' : r.rank === 2 ? 'bg-slate-300 text-slate-900' : r.rank === 3 ? 'bg-amber-700 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'} text-[11px]">
+                ${r.rank}
+              </span>
+              <div>
+                <strong class="font-heading text-slate-900 dark:text-white text-sm">${r.token} ${r.name}</strong>
+                <span class="block text-[10px] text-slate-400 font-mono">
+                  Efectivo: $${r.cash.toLocaleString()} • Títulos: $${r.properties_value.toLocaleString()} • Casas: $${r.buildings_value.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <span class="font-mono font-extrabold text-sm text-slate-900 dark:text-white">
+              $${r.net_worth.toLocaleString()}
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    document.getElementById('podium-modal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closePodiumModal() {
+    document.getElementById('podium-modal').classList.add('hidden');
+  }
+
+  // Inicialización
+  refreshGameData();
+</script>
+{% endblock %}
