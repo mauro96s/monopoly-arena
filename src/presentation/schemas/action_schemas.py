@@ -1,0 +1,178 @@
+from pydantic import BaseModel, Field
+from typing import Optional
+
+
+class BuyPropertyRequest(BaseModel):
+    player_id: int = Field(..., description="ID del jugador que realiza la compra")
+    tile_id: str = Field(..., description="Identificador de la casilla (ej: BOARDWALK, MEDITERRANEAN_AVE)")
+    auto_advance_turn: bool = True
+
+
+class BuyPropertyResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    tile_id: str
+    tile_name: str
+    price_paid: int
+    remaining_balance: int
+    transaction_id: int
+    current_turn: int
+    current_player_index: int
+
+
+class PayRentRequest(BaseModel):
+    payer_player_id: int = Field(..., description="ID del jugador que cayó en la casilla ajena")
+    tile_id: str = Field(..., description="Identificador de la casilla en que cayó")
+    dice_roll: int = Field(7, description="Suma de los dados (utilizado para calcular renta de servicios)")
+    auto_advance_turn: bool = True
+
+
+class PayRentResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    payer_id: int
+    payer_name: str
+    owner_id: int
+    owner_name: str
+    tile_id: str
+    tile_name: str
+    rent_amount: int
+    is_monopoly_doubled: bool
+    houses_count: int
+    hotels_count: int
+    payer_balance: int
+    owner_balance: int
+    transaction_id: int
+    current_turn: int
+    current_player_index: int
+
+
+class BuildHouseRequest(BaseModel):
+    player_id: int = Field(..., description="ID del dueño del monopolio")
+    tile_id: str = Field(..., description="Casilla donde se construye")
+
+
+class BuildHouseResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    tile_id: str
+    tile_name: str
+    cost_paid: int
+    new_houses_count: int
+    new_hotels_count: int
+    remaining_balance: int
+    transaction_id: int
+
+
+class MortgageRequest(BaseModel):
+    player_id: int = Field(..., description="ID del dueño")
+    tile_id: str = Field(..., description="Casilla a hipotecar/deshipotecar")
+
+
+class MortgageResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    tile_id: str
+    tile_name: str
+    amount: int
+    is_mortgaged: bool
+    remaining_balance: int
+    transaction_id: int
+
+
+class JailActionRequest(BaseModel):
+    player_id: int
+    action: str = Field(..., description="'PAY_FINE', 'USE_CARD', 'GO_TO_JAIL', 'STAY'")
+    auto_advance_turn: bool = True
+
+
+class JailActionResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    in_jail: bool
+    jail_turns: int
+    amount_paid: int
+    remaining_balance: int
+    transaction_id: int
+    current_turn: int
+    current_player_index: int
+
+
+class BankActionRequest(BaseModel):
+    player_id: int
+    action_type: str = Field(..., description="'PASS_GO', 'INCOME_TAX', 'LUXURY_TAX', 'CHANCE_REWARD', 'CHANCE_PENALTY'")
+    custom_amount: Optional[int] = None
+    description: Optional[str] = None
+    auto_advance_turn: bool = True
+
+
+class BankActionResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    amount: int
+    is_credit: bool
+    remaining_balance: int
+    transaction_id: int
+    current_turn: int
+    current_player_index: int
+
+
+class TransferMoneyRequest(BaseModel):
+    amount: int = Field(..., gt=0, description="Monto en dinero de Monopoly a transferir")
+    description: str = Field(..., min_length=3, max_length=200, description="Motivo del movimiento")
+    source_player_id: Optional[int] = Field(None, description="ID del jugador que paga (None para la Banca)")
+    target_player_id: Optional[int] = Field(None, description="ID del jugador que cobra (None para la Banca)")
+    auto_advance_turn: bool = False
+
+
+class TransferMoneyResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    transaction_id: int
+    amount: int
+    description: str
+    source_balance: Optional[int] = None
+    target_balance: Optional[int] = None
+    current_turn: int
+    current_player_index: int
+
+
+class PlayerRankingSchema(BaseModel):
+    rank: int
+    player_id: int
+    name: str
+    token: str
+    cash: int
+    properties_value: int
+    buildings_value: int
+    mortgage_debt: int
+    net_worth: int
+
+
+class FinishGameResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    winner_name: str
+    winner_token: str
+    winner_net_worth: int
+    rankings: list[PlayerRankingSchema]
+    transaction_id: int
+
+
+class CreateGameRequest(BaseModel):
+    code: str = Field(..., min_length=3, max_length=16, description="Código de sala (ej: 'SALA123')")
+    variant: Optional[str] = "CLASSIC"
+
+
+class AddPlayerRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=50)
+    token: str = Field(..., description="Ficha del jugador (ej: 'Carro', 'Sombrero')")
