@@ -17,7 +17,8 @@ from src.application.use_cases.finish_game import FinishGameUseCase
 from src.presentation.schemas.action_schemas import FinishGameResponse, PlayerRankingSchema
 from src.domain.models.game import Game
 from src.domain.models.player import Player
-from src.domain.models.enums import GameStatus, GameVariant
+from src.domain.models.transaction import Transaction
+from src.domain.models.enums import GameStatus, GameVariant, TransactionType
 from src.domain.rules.rule_registry import BoardRuleRegistry
 
 router = APIRouter(prefix="/games", tags=["Games"])
@@ -152,12 +153,43 @@ def advance_turn(
     game_id: int,
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+    tx_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
 ):
     game = game_repo.get_by_id(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    if game.status == GameStatus.FINISHED:
+        raise HTTPException(status_code=400, detail="La partida ya ha finalizado.")
 
     players = player_repo.list_by_game(game_id)
+    if not players:
+        raise HTTPException(status_code=400, detail="No hay jugadores en la partida.")
+
+    active_player = players[game.current_player_index % len(players)]
+
+    # Regla oficial de Cárcel al pasar turno
+    if active_player.in_jail:
+        if active_player.jail_turns >= 3:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Acción bloqueada: {active_player.name} ha cumplido 3 turnos en la Cárcel. Las reglas oficiales exigen pagar la fianza de $50 o usar una carta para salir antes de continuar."
+            )
+        active_player.jail_turns += 1
+        player_repo.save(active_player)
+        tx_repo.record(
+            Transaction(
+                id=None,
+                game_id=game.id,
+                turn_number=game.current_turn,
+                transaction_type=TransactionType.BANK_TRANSFER,
+                amount=0,
+                description=f"{active_player.name} cumplió su turno #{active_player.jail_turns} en la Cárcel",
+                source_player_id=None,
+                target_player_id=None,
+                tile_id="JAIL",
+            )
+        )
+
     game.advance_turn(len(players))
     game.status = GameStatus.IN_PROGRESS
     saved = game_repo.save(game)

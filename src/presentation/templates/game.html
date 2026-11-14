@@ -4,16 +4,16 @@
 
 {% block extra_head %}
 <style>
-  /* Estilo auténtico para tarjetas de título de propiedad de Monopoly */
+  /* Estilo auténtico y minimalista para tarjetas de título de propiedad de Monopoly */
   .title-deed-card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
   .title-deed-card:not(.disabled-card):hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 14px -3px rgba(0, 0, 0, 0.12);
   }
   .disabled-card {
-    opacity: 0.45;
+    opacity: 0.38 !important;
     cursor: not-allowed !important;
     filter: grayscale(40%);
   }
@@ -100,12 +100,12 @@
       </button>
     </div>
 
-    <!-- Botón Manual: Pasar Turno (Casillas Neutrales) -->
+    <!-- Botón Manual: Pasar Turno (Casillas Neutrales o Incremento de Cárcel) -->
     <button
       id="advance-turn-btn"
       type="button"
       class="py-2 px-3.5 rounded-xl bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95"
-      title="Pasar al siguiente jugador solo si cayó en casilla neutral (sin compra ni pago)"
+      title="Pasar al siguiente jugador solo si cayó en casilla neutral"
     >
       <span>Pasar Turno</span>
       <i data-lucide="chevron-right" class="w-4 h-4"></i>
@@ -123,7 +123,7 @@
     </div>
 
     <div id="players-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <!-- Inyectado y actualizado dinámicamente -->
+      <!-- Inyectado dinámicamente -->
     </div>
   </div>
 
@@ -150,13 +150,14 @@
 </div>
 
 <!-- ========================================================================= -->
-<!-- MODAL CONTEXTUAL TÁCTICO: 1 SOLO TOQUE (JUGADOR ACTIVO)                   -->
+<!-- MODAL CONTEXTUAL TÁCTICO: ALTURA ESTÁTICA Y MINIMALISTA (1 SOLO TOQUE)    -->
 <!-- ========================================================================= -->
 <div id="action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm hidden animate-fade-in">
-  <div class="relative w-full max-w-4xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh] overflow-hidden">
+  <!-- Contenedor con altura fija estática para evitar saltos de pantalla -->
+  <div class="relative w-full max-w-4xl h-[560px] max-h-[90vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
     
     <!-- Modal Header -->
-    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40">
+    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
       <div class="flex items-center gap-3">
         <span id="modal-player-token" class="text-3xl">🎩</span>
         <div>
@@ -183,8 +184,8 @@
       </button>
     </div>
 
-    <!-- Modal Tabs con Iconos Lucide -->
-    <div class="flex items-center gap-1.5 px-4 pt-3 border-b border-slate-100 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
+    <!-- Modal Tabs con Iconos Lucide (Navegación Táctica de 1 Clic) -->
+    <div class="flex items-center gap-1 px-4 pt-2 border-b border-slate-100 dark:border-slate-700/60 overflow-x-auto no-scrollbar shrink-0">
       <button
         type="button"
         id="tab-btn-buy"
@@ -192,7 +193,7 @@
         class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 whitespace-nowrap flex items-center gap-1.5"
       >
         <i data-lucide="home" class="w-3.5 h-3.5"></i>
-        <span>Comprar Propiedad</span>
+        <span>Comprar</span>
       </button>
       <button
         type="button"
@@ -210,7 +211,7 @@
         class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
       >
         <i data-lucide="building" class="w-3.5 h-3.5"></i>
-        <span>Construir Casas / Hoteles</span>
+        <span>Construir</span>
       </button>
       <button
         type="button"
@@ -219,7 +220,16 @@
         class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
       >
         <i data-lucide="landmark" class="w-3.5 h-3.5"></i>
-        <span>Banca, Suerte & Arca</span>
+        <span>Banca</span>
+      </button>
+      <button
+        type="button"
+        id="tab-btn-mortgage"
+        onclick="switchModalTab('mortgage')"
+        class="modal-tab-btn py-2 px-3 text-xs font-heading font-bold rounded-t-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 whitespace-nowrap flex items-center gap-1.5"
+      >
+        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+        <span>Hipotecas</span>
       </button>
       <button
         type="button"
@@ -232,51 +242,36 @@
       </button>
     </div>
 
-    <!-- Modal Body: Scrollable -->
-    <div class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+    <!-- Modal Body: Con scroll interno controlado dentro de la altura estática -->
+    <div class="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 space-y-4">
 
       <!-- ============================================== -->
-      <!-- TAB 1: COMPRAR PROPIEDAD (CARDS ESTILO TÍTULO) -->
+      <!-- TAB 1: COMPRAR PROPIEDAD                       -->
       <!-- ============================================== -->
-      <div id="modal-panel-buy" class="modal-panel space-y-4">
-        <!-- Paso 1: Filtro de Grupos de Color con Iconos -->
-        <div>
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
-            1. Selecciona un grupo de propiedades:
-          </span>
-          <div id="color-group-pills" class="flex flex-wrap gap-2 pb-1">
-            <!-- Inyectado dinámicamente con iconos Lucide -->
-          </div>
+      <div id="modal-panel-buy" class="modal-panel space-y-3">
+        <!-- Selector de Grupos: 1 Sola Línea Horizontal con Cuadros Minimalistas -->
+        <div id="color-group-pills" class="grid grid-cols-10 gap-1.5 sm:gap-2 pb-1">
+          <!-- Inyectado dinámicamente: solo iconos y color oficial en 1 sola fila -->
         </div>
 
-        <!-- Paso 2: Grilla de Máximo 4 Columnas con Cards Estilo Título de Monopoly Clásico -->
-        <div>
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
-            2. Toca la propiedad disponible para comprarla de inmediato:
-          </span>
-          <div id="available-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <!-- Inyectado dinámicamente -->
-          </div>
+        <!-- Grilla de Cards Estilo Título de Monopoly (Sin texto "Título" ni "Ocupada") -->
+        <div id="available-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Inyectado dinámicamente -->
         </div>
       </div>
 
       <!-- ============================================== -->
-      <!-- TAB 2: PAGAR RENTA (SELECCIONAR RIVAL Y CARD)  -->
+      <!-- TAB 2: PAGAR RENTA (RIVALES Y PROPIEDADES)     -->
       <!-- ============================================== -->
-      <div id="modal-panel-rent" class="modal-panel space-y-4 hidden">
-        <div>
-          <!-- Paso 1: Seleccionar Rival -->
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
-            1. ¿En la propiedad de qué rival caíste?
-          </span>
-          <div id="rivals-selector-container" class="flex flex-wrap gap-2 pb-2">
-            <!-- Inyectado dinámicamente -->
-          </div>
+      <div id="modal-panel-rent" class="modal-panel space-y-3 hidden">
+        <!-- Selector de Rivales: 1 Sola Fila Horizontal con Cuadro Compacto (Icono grande y nombre) -->
+        <div id="rivals-selector-container" class="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1">
+          <!-- Inyectado dinámicamente -->
         </div>
 
-        <!-- Selector de Dados para Servicios -->
-        <div id="utility-dice-box" class="hidden p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
-          <span class="font-medium text-slate-700 dark:text-slate-300">Tirada de dados para Servicios (Luz/Agua):</span>
+        <!-- Selector de Dados para Servicios (Luz/Agua) -->
+        <div id="utility-dice-box" class="hidden p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+          <span class="font-medium text-slate-700 dark:text-slate-300">Tirada de dados para Servicios:</span>
           <div class="flex gap-1.5">
             <button type="button" onclick="setDiceRoll(4)" class="dice-btn px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-mono font-bold">4</button>
             <button type="button" onclick="setDiceRoll(7)" class="dice-btn px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-mono font-bold">7 (Def)</button>
@@ -285,193 +280,147 @@
           </div>
         </div>
 
-        <!-- Paso 2: Cards de Propiedades del Rival con Renta Calculada -->
-        <div>
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
-            2. Toca la propiedad para pagar la renta calculada automáticamente:
-          </span>
-          <div id="rival-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <!-- Inyectado dinámicamente -->
-          </div>
+        <!-- Filtro Horizontal de Cuadros por Grupo del Rival -->
+        <div id="rival-group-filter-container" class="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          <!-- Inyectado dinámicamente -->
+        </div>
+
+        <!-- Grilla de Cards de Propiedades del Rival con Renta Calculada -->
+        <div id="rival-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Inyectado dinámicamente -->
         </div>
       </div>
 
       <!-- ============================================== -->
       <!-- TAB 3: CONSTRUIR CASAS Y HOTELES (MONOPOLIOS)  -->
       <!-- ============================================== -->
-      <div id="modal-panel-build" class="modal-panel space-y-4 hidden">
-        <div>
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
-            Monopolios Completos Disponibles para Edificar:
-          </span>
-          <!-- Selector de monopolios disponibles -->
-          <div id="monopoly-selector-pills" class="flex flex-wrap gap-2 pb-2">
-            <!-- Inyectado dinámicamente -->
-          </div>
+      <div id="modal-panel-build" class="modal-panel space-y-3 hidden">
+        <!-- Selector Horizontal de Monopolios con Cuadros de Color/Icono en 1 Línea -->
+        <div id="monopoly-selector-pills" class="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          <!-- Inyectado dinámicamente -->
         </div>
 
-        <div>
-          <div id="build-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <!-- Inyectado dinámicamente -->
-          </div>
+        <!-- Grilla de Propiedades del Monopolio para Edificar con 1 Clic -->
+        <div id="build-properties-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <!-- Inyectado dinámicamente -->
         </div>
       </div>
 
       <!-- ============================================================== -->
-      <!-- TAB 4: MÓDULO COMPLETO: BANCA, SUERTE, ARCA COMUNAL & HIPOTECAS -->
+      <!-- TAB 4: BANCA (MOVIMIENTO BANCARIO MANUAL DIRECTO)              -->
       <!-- ============================================================== -->
-      <div id="modal-panel-bank" class="modal-panel space-y-5 hidden">
+      <div id="modal-panel-bank" class="modal-panel space-y-4 hidden">
         
-        <!-- Categoría 1: Cobros e Ingresos de Cartas Clásicas -->
-        <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block mb-2 flex items-center gap-1.5">
-            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i>
-            <span>Cobros e Ingresos Oficiales (Arca Comunal & Suerte)</span>
-          </span>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-            <button type="button" onclick="executeBankAction('PASS_GO')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>🚩 Salida</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$200</strong>
+        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 space-y-4">
+          <!-- Selector de Dirección -->
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              id="bank-dir-credit"
+              onclick="setBankDirection('CREDIT')"
+              class="py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-emerald-600 text-white border-transparent shadow-xs"
+            >
+              <i data-lucide="arrow-down-left" class="w-4 h-4"></i>
+              <span>El Banco paga al Jugador (+)</span>
             </button>
-            <button type="button" onclick="executeBankAction('BANK_ERROR')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Error de Banca</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$200</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('TAX_REFUND')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Devolución Impuesto</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$20</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('INHERITANCE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Heredas</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('STOCK_SALE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Venta Acciones</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$50</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('CONSULTANT_FEE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Consultor</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$25</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('BEAUTY_CONTEST')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Concurso</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('LIFE_INSURANCE')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Seguro Vencido</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$100</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('DIVIDENDS')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Dividendos</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$50</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('BUILDING_LOAN')" class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-left border border-emerald-200 dark:border-emerald-800 transition-all flex justify-between items-center">
-              <span>Préstamo Construc.</span>
-              <strong class="font-mono text-emerald-700 dark:text-emerald-300">+$150</strong>
+            <button
+              type="button"
+              id="bank-dir-debit"
+              onclick="setBankDirection('DEBIT')"
+              class="py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+            >
+              <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+              <span>El Jugador paga al Banco (-)</span>
             </button>
           </div>
-        </div>
 
-        <!-- Categoría 2: Pagos y Multas Clásicas -->
-        <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-400 block mb-2 flex items-center gap-1.5">
-            <i data-lucide="arrow-up-circle" class="w-4 h-4"></i>
-            <span>Pagos, Impuestos y Multas Oficiales</span>
-          </span>
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-            <button type="button" onclick="executeBankAction('INCOME_TAX')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Impuesto Ingresos</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$200</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('LUXURY_TAX')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Impuesto de Lujo</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$100</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('DOCTOR_FEE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Honorarios Médico</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$50</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('HOSPITAL_FEE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Hospital</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$100</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('SCHOOL_FEES')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Colegiatura</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$50</strong>
-            </button>
-            <button type="button" onclick="executeBankAction('SPEEDING_FINE')" class="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 text-left border border-red-200 dark:border-red-800 transition-all flex justify-between items-center">
-              <span>Exceso Velocidad</span>
-              <strong class="font-mono text-red-700 dark:text-red-300">-$15</strong>
-            </button>
-          </div>
-        </div>
+          <!-- Input de Monto con Accesos Rápidos -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Monto en Dólares ($)
+            </label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-mono font-bold text-lg">$</span>
+              <input
+                id="bank-manual-amount"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="200"
+                class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-extrabold text-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
 
-        <!-- Categoría 3: Reparaciones Generales y Dinámicas de Grupo -->
-        <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 block mb-2 flex items-center gap-1.5">
-            <i data-lucide="wrench" class="w-4 h-4"></i>
-            <span>Reparaciones de Edificios & Dinámica entre Jugadores</span>
-          </span>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <button type="button" onclick="executeBankAction('REPAIRS_CHEST')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-left border border-amber-300/80 dark:border-amber-800 transition-all">
-              <strong class="block font-heading">Reparaciones de Arca Comunal</strong>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">$25 por casa y $100 por hotel (cálculo automático)</span>
-            </button>
-            <button type="button" onclick="executeBankAction('REPAIRS_CHANCE')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-600 hover:text-white dark:hover:bg-amber-600 text-left border border-amber-300/80 dark:border-amber-800 transition-all">
-              <strong class="block font-heading">Reparaciones de Suerte</strong>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">$40 por casa y $115 por hotel (cálculo automático)</span>
-            </button>
-            <button type="button" onclick="executeBankAction('BIRTHDAY')" class="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-600 hover:text-white dark:hover:bg-purple-600 text-left border border-purple-200 dark:border-purple-800 transition-all">
-              <strong class="block font-heading">🎂 ¡Es tu Cumpleaños!</strong>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Cobras $10 a cada uno de los demás jugadores</span>
-            </button>
-            <button type="button" onclick="executeBankAction('CHARITY')" class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 text-left border border-blue-200 dark:border-blue-800 transition-all">
-              <strong class="block font-heading">🎭 Beneficencia / Ópera</strong>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">Pagas $50 a cada uno de los demás jugadores</span>
-            </button>
+            <!-- Accesos rápidos oficiales -->
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <button type="button" onclick="setQuickBankAmount(200, 'Salida')" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[11px] font-mono font-bold hover:bg-emerald-100">
+                +$200 (Salida)
+              </button>
+              <button type="button" onclick="setQuickBankAmount(100, 'Premio / Cobro')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold hover:bg-slate-200">
+                $100
+              </button>
+              <button type="button" onclick="setQuickBankAmount(50, 'Cobro / Pago')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold hover:bg-slate-200">
+                $50
+              </button>
+              <button type="button" onclick="setQuickBankAmount(15, 'Multa')" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold hover:bg-slate-200">
+                $15
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Categoría 4: Hipotecas -->
-        <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-2 flex items-center gap-1.5">
-            <i data-lucide="lock" class="w-4 h-4"></i>
-            <span>Hipotecar / Deshipotecar Propiedades</span>
-          </span>
-          <div id="mortgage-properties-list" class="space-y-2">
-            <!-- Inyectado dinámicamente -->
+          <!-- Input Opcional de Descripción -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Descripción / Motivo <span class="text-slate-400 font-normal">(Opcional)</span>
+            </label>
+            <input
+              id="bank-manual-desc"
+              type="text"
+              placeholder="Ej: Pasó por la Salida, Devolución, Multa o Impuesto"
+              class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
           </div>
+
+          <!-- Botón Principal de Acción -->
+          <button
+            type="button"
+            onclick="submitManualBankAction()"
+            class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+          >
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Registrar Movimiento Bancario</span>
+          </button>
         </div>
 
       </div>
 
       <!-- ============================================== -->
-      <!-- TAB 5: GESTIÓN OFICIAL DE CÁRCEL (3 TURNOS)    -->
+      <!-- TAB 5: HIPOTECAS CON FILTRO POR GRUPO          -->
+      <!-- ============================================== -->
+      <div id="modal-panel-mortgage" class="modal-panel space-y-3 hidden">
+        <!-- Filtro Horizontal de Grupos si el Jugador tiene múltiples -->
+        <div id="mortgage-group-filter-container" class="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          <!-- Inyectado dinámicamente -->
+        </div>
+
+        <div id="mortgage-properties-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- TAB 6: GESTIÓN DE CÁRCEL (OFICIAL 3 TURNOS)    -->
       <!-- ============================================== -->
       <div id="modal-panel-jail" class="modal-panel space-y-4 hidden">
-        <div>
-          <div id="jail-status-box" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 mb-4">
-            <!-- Inyectado dinámicamente con control estricto de 3 turnos -->
-          </div>
+        <div id="jail-status-box" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700">
+          <!-- Inyectado dinámicamente con control estricto de 3 turnos -->
+        </div>
 
-          <div id="jail-actions-box" class="space-y-2.5">
-            <!-- Inyectado dinámicamente -->
-          </div>
+        <div id="jail-actions-box" class="space-y-2">
+          <!-- Inyectado dinámicamente -->
         </div>
       </div>
 
-    </div>
-
-    <!-- Modal Footer -->
-    <div class="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/40 flex justify-between items-center text-xs">
-      <span class="text-slate-400">Monopoly Arena • Ejecución con 1 solo toque</span>
-      <button
-        type="button"
-        onclick="closeActionModal()"
-        class="py-1.5 px-4 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-300 transition-colors"
-      >
-        Cerrar
-      </button>
     </div>
 
   </div>
@@ -529,20 +478,23 @@
   let activeDiceRoll = 7;
   let selectedBuyGroup = 'BROWN';
   let selectedRentRivalId = null;
+  let selectedRentGroup = 'ALL';
   let selectedMonopolyGroup = null;
+  let selectedMortgageGroup = 'ALL';
+  let activeBankDirection = 'CREDIT'; // 'CREDIT' o 'DEBIT'
 
   // Catálogo oficial de grupos de Monopoly con Iconos Lucide
   const OFFICIAL_GROUPS = [
-    { key: 'BROWN', name: 'Marrón', badge: 'bg-[#8B4513] text-white', hex: '#8B4513', icon: 'home' },
-    { key: 'LIGHT_BLUE', name: 'Celeste', badge: 'bg-[#38BDF8] text-slate-900', hex: '#38BDF8', icon: 'cloud' },
-    { key: 'PINK', name: 'Rosa', badge: 'bg-[#EC4899] text-white', hex: '#EC4899', icon: 'heart' },
-    { key: 'ORANGE', name: 'Naranja', badge: 'bg-[#F97316] text-white', hex: '#F97316', icon: 'flame' },
-    { key: 'RED', name: 'Rojo', badge: 'bg-[#EF4444] text-white', hex: '#EF4444', icon: 'building' },
-    { key: 'YELLOW', name: 'Amarillo', badge: 'bg-[#EAB308] text-slate-900', hex: '#EAB308', icon: 'sun' },
-    { key: 'GREEN', name: 'Verde', badge: 'bg-[#16A34A] text-white', hex: '#16A34A', icon: 'trees' },
-    { key: 'DARK_BLUE', name: 'Azul', badge: 'bg-[#1D4ED8] text-white', hex: '#1D4ED8', icon: 'crown' },
-    { key: 'RAILROAD', name: 'Estaciones', badge: 'bg-slate-700 text-white', hex: '#334155', icon: 'train' },
-    { key: 'UTILITY', name: 'Servicios', badge: 'bg-cyan-700 text-white', hex: '#0e7490', icon: 'zap' },
+    { key: 'BROWN', name: 'Marrón', hex: '#8B4513', icon: 'home' },
+    { key: 'LIGHT_BLUE', name: 'Celeste', hex: '#38BDF8', icon: 'cloud' },
+    { key: 'PINK', name: 'Rosa', hex: '#EC4899', icon: 'heart' },
+    { key: 'ORANGE', name: 'Naranja', hex: '#F97316', icon: 'flame' },
+    { key: 'RED', name: 'Rojo', hex: '#EF4444', icon: 'building' },
+    { key: 'YELLOW', name: 'Amarillo', hex: '#EAB308', icon: 'sun' },
+    { key: 'GREEN', name: 'Verde', hex: '#16A34A', icon: 'trees' },
+    { key: 'DARK_BLUE', name: 'Azul', hex: '#1D4ED8', icon: 'crown' },
+    { key: 'RAILROAD', name: 'Estaciones', hex: '#334155', icon: 'train' },
+    { key: 'UTILITY', name: 'Servicios', hex: '#0E7490', icon: 'zap' },
   ];
 
   function getActivePlayer() {
@@ -625,13 +577,13 @@
         propsBadgesHtml = owned.map(prop => {
           const t = boardTiles.find(tile => tile.tile_id === prop.tile_id);
           if (!t) return '';
-          const grp = OFFICIAL_GROUPS.find(g => g.key === t.group) || { badge: 'bg-slate-600 text-white' };
+          const grp = OFFICIAL_GROUPS.find(g => g.key === t.group) || { hex: '#475569' };
           let improvement = '';
           if (prop.hotels_count > 0) improvement = ' 🏨';
           else if (prop.houses_count > 0) improvement = ` 🏠${prop.houses_count}`;
           if (prop.is_mortgaged) improvement = ' 🔒';
 
-          return `<span class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 rounded-md font-bold shadow-xs ${grp.badge}" title="${t.name}">${t.name.substring(0, 9)}${improvement}</span>`;
+          return `<span style="background-color: ${grp.hex};" class="inline-flex items-center text-[10px] font-mono px-2 py-0.5 rounded-md font-bold text-white shadow-xs" title="${t.name}">${t.name.substring(0, 9)}${improvement}</span>`;
         }).join('');
       }
 
@@ -680,7 +632,7 @@
           </div>
         </div>
 
-        <!-- Botón Táctico: Si es su turno, abre modal; si no, indica bloqueo -->
+        <!-- Botón Táctico -->
         <div class="pt-2 border-t border-slate-100 dark:border-slate-700/50">
           ${isActive ? `
             <button
@@ -778,7 +730,7 @@
   }
 
   function switchModalTab(tabName) {
-    const tabs = ['buy', 'rent', 'build', 'bank', 'jail'];
+    const tabs = ['buy', 'rent', 'build', 'bank', 'mortgage', 'jail'];
     tabs.forEach(t => {
       const btn = document.getElementById(`tab-btn-${t}`);
       const panel = document.getElementById(`modal-panel-${t}`);
@@ -795,7 +747,7 @@
   }
 
   // ========================================================
-  // TAB 1: COMPRAR PROPIEDAD (CARDS ESTILO TÍTULO CLÁSICO)
+  // TAB 1: COMPRAR PROPIEDAD (1 SOLA LÍNEA DE CUADROS)
   // ========================================================
   function renderBuyColorPills() {
     const container = document.getElementById('color-group-pills');
@@ -804,15 +756,16 @@
       return `
         <button
           type="button"
+          title="${grp.name}"
           onclick="selectBuyColorGroup('${grp.key}')"
-          class="px-2.5 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+          class="h-9 w-full sm:h-10 rounded-xl flex items-center justify-center transition-all ${
             isSelected
-              ? 'ring-2 ring-emerald-500 shadow-sm border-transparent ' + grp.badge
-              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 opacity-80 hover:opacity-100'
+              ? 'ring-2 ring-emerald-500 scale-105 shadow-md shadow-emerald-500/20'
+              : 'opacity-70 hover:opacity-100 hover:scale-102'
           }"
+          style="background-color: ${grp.hex};"
         >
-          <i data-lucide="${grp.icon}" class="w-3.5 h-3.5"></i>
-          <span>${grp.name}</span>
+          <i data-lucide="${grp.icon}" class="w-4 h-4 text-white drop-shadow-sm"></i>
         </button>
       `;
     }).join('');
@@ -832,11 +785,11 @@
     const activePlayer = getActivePlayer();
 
     if (groupTiles.length === 0) {
-      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4">No hay casillas disponibles en este grupo.</p>';
+      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4 py-4 text-center">No hay propiedades en este grupo.</p>';
       return;
     }
 
-    const grp = OFFICIAL_GROUPS.find(g => g.key === groupKey) || { hex: '#475569', badge: 'bg-slate-700 text-white' };
+    const grp = OFFICIAL_GROUPS.find(g => g.key === groupKey) || { hex: '#475569' };
 
     grid.innerHTML = groupTiles.map(t => {
       const isOwned = ownedTileIds.has(t.tile_id);
@@ -844,13 +797,12 @@
 
       if (isOwned) {
         return `
-          <div class="title-deed-card disabled-card border-2 border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900 text-center shadow-xs">
-            <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-wider uppercase">
-              OCUPADA
-            </div>
-            <div class="p-2 space-y-1">
-              <div class="font-heading font-bold text-xs uppercase text-slate-400 line-clamp-1">${t.name}</div>
-              <div class="font-mono text-xs text-slate-400 line-through">$${t.price}</div>
+          <div class="title-deed-card disabled-card border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/60 text-center shadow-none select-none">
+            <div style="background-color: ${grp.hex};" class="h-3.5 w-full"></div>
+            <div class="p-2.5 space-y-1">
+              <div class="font-heading font-medium text-xs uppercase text-slate-400 dark:text-slate-500 line-clamp-1" title="${t.name}">${t.name}</div>
+              <div class="font-mono font-bold text-sm text-slate-400 dark:text-slate-500">$${t.price}</div>
+              <div class="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Renta: $${t.base_rent}</div>
             </div>
           </div>
         `;
@@ -859,15 +811,13 @@
       return `
         <div
           onclick="${canAfford ? `executeBuyProperty('${t.tile_id}', '${t.name}', ${t.price})` : `showToast('Fondos insuficientes', 'error')`}"
-          class="title-deed-card border-2 border-slate-900 dark:border-slate-600 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm cursor-pointer hover:border-emerald-500 transition-all ${!canAfford ? 'opacity-60' : ''}"
+          class="title-deed-card border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-xs cursor-pointer transition-all ${!canAfford ? 'opacity-60' : ''}"
         >
-          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
-            TÍTULO
-          </div>
-          <div class="p-2 space-y-1">
-            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+          <div style="background-color: ${grp.hex};" class="h-3.5 w-full"></div>
+          <div class="p-2.5 space-y-1">
+            <div class="font-heading font-bold text-xs uppercase text-slate-900 dark:text-white line-clamp-1" title="${t.name}">${t.name}</div>
             <div class="font-mono font-extrabold text-sm text-emerald-600 dark:text-emerald-400">$${t.price}</div>
-            <div class="text-[9px] text-slate-400 font-mono">Renta: $${t.base_rent}</div>
+            <div class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">Renta: $${t.base_rent}</div>
           </div>
         </div>
       `;
@@ -903,7 +853,7 @@
   }
 
   // ========================================================
-  // TAB 2: PAGAR RENTA (SELECCIONAR RIVAL Y CARD)
+  // TAB 2: PAGAR RENTA (RIVALES Y FILTRO POR GRUPO)
   // ========================================================
   function renderRentRivalsSelector() {
     const container = document.getElementById('rivals-selector-container');
@@ -913,7 +863,7 @@
     const rivals = playersData.filter(p => p.id !== activePlayer.id);
 
     if (rivals.length === 0) {
-      container.innerHTML = '<p class="text-xs text-slate-400 italic">No hay rivales en la partida.</p>';
+      container.innerHTML = '<p class="text-xs text-slate-400 italic py-2">No hay rivales en la partida.</p>';
       return;
     }
 
@@ -927,24 +877,87 @@
         <button
           type="button"
           onclick="selectRentRival(${r.id})"
-          class="px-3 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+          class="flex-1 min-w-[76px] py-2 px-2 rounded-xl text-center transition-all border ${
             isSelected
-              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-sm'
-              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-100'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'
           }"
         >
-          <span>${getTokenEmoji(r.token)}</span>
-          <span>${r.name}</span>
+          <div class="text-2xl mb-1">${getTokenEmoji(r.token)}</div>
+          <div class="text-[11px] font-heading font-bold truncate">${r.name}</div>
         </button>
       `;
     }).join('');
 
-    renderRivalPropertiesGrid(selectedRentRivalId);
+    renderRivalGroupFilters();
+    renderRivalPropertiesGrid();
   }
 
   function selectRentRival(rivalId) {
     selectedRentRivalId = rivalId;
+    selectedRentGroup = 'ALL';
     renderRentRivalsSelector();
+  }
+
+  function renderRivalGroupFilters() {
+    const filterContainer = document.getElementById('rival-group-filter-container');
+    if (!selectedRentRivalId) {
+      filterContainer.innerHTML = '';
+      return;
+    }
+
+    const rivalProps = propertyStates.filter(p => p.owner_id === selectedRentRivalId);
+    const rivalTileObjs = rivalProps.map(p => boardTiles.find(t => t.tile_id === p.tile_id)).filter(Boolean);
+    const uniqueGroups = [...new Set(rivalTileObjs.map(t => t.group))];
+
+    if (uniqueGroups.length <= 1) {
+      filterContainer.innerHTML = '';
+      return;
+    }
+
+    let html = `
+      <button
+        type="button"
+        title="Todas las propiedades"
+        onclick="filterRivalByGroup('ALL')"
+        class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-all ${
+          selectedRentGroup === 'ALL'
+            ? 'ring-2 ring-emerald-500 bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+        }"
+      >
+        <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+      </button>
+    `;
+
+    uniqueGroups.forEach(grpKey => {
+      const grp = OFFICIAL_GROUPS.find(g => g.key === grpKey) || { hex: '#475569', icon: 'home', name: grpKey };
+      const isSelected = selectedRentGroup === grpKey;
+      html += `
+        <button
+          type="button"
+          title="${grp.name}"
+          onclick="filterRivalByGroup('${grpKey}')"
+          class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-all ${
+            isSelected
+              ? 'ring-2 ring-emerald-500 scale-105 shadow-sm'
+              : 'opacity-70 hover:opacity-100'
+          }"
+          style="background-color: ${grp.hex};"
+        >
+          <i data-lucide="${grp.icon}" class="w-3.5 h-3.5 text-white"></i>
+        </button>
+      `;
+    });
+
+    filterContainer.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function filterRivalByGroup(grpKey) {
+    selectedRentGroup = grpKey;
+    renderRivalGroupFilters();
+    renderRivalPropertiesGrid();
   }
 
   function setDiceRoll(val) {
@@ -953,24 +966,31 @@
       btn.classList.toggle('bg-emerald-600', btn.textContent.includes(val.toString()));
       btn.classList.toggle('text-white', btn.textContent.includes(val.toString()));
     });
-    if (selectedRentRivalId) {
-      renderRivalPropertiesGrid(selectedRentRivalId);
-    }
+    renderRivalPropertiesGrid();
   }
 
-  function renderRivalPropertiesGrid(rivalId) {
+  function renderRivalPropertiesGrid() {
     const grid = document.getElementById('rival-properties-grid');
-    const rival = playersData.find(p => p.id === rivalId);
+    if (!selectedRentRivalId) return;
+
+    const rival = playersData.find(p => p.id === selectedRentRivalId);
     if (!rival) return;
 
-    const rivalProps = propertyStates.filter(p => p.owner_id === rivalId);
+    let rivalProps = propertyStates.filter(p => p.owner_id === selectedRentRivalId);
 
     // Si tiene servicios, mostrar selector de dados
     const hasUtility = rivalProps.some(p => p.tile_id === 'ELECTRIC_COMPANY' || p.tile_id === 'WATER_WORKS');
     document.getElementById('utility-dice-box').classList.toggle('hidden', !hasUtility);
 
+    if (selectedRentGroup !== 'ALL') {
+      rivalProps = rivalProps.filter(p => {
+        const t = boardTiles.find(tile => tile.tile_id === p.tile_id);
+        return t && t.group === selectedRentGroup;
+      });
+    }
+
     if (rivalProps.length === 0) {
-      grid.innerHTML = `<p class="text-xs text-slate-400 italic col-span-4">${rival.name} aún no posee títulos de propiedad.</p>`;
+      grid.innerHTML = `<p class="text-xs text-slate-400 italic col-span-4 py-4 text-center">${rival.name} no posee títulos en este grupo.</p>`;
       return;
     }
 
@@ -983,20 +1003,18 @@
       let improvementLabel = 'Renta Base';
       if (prop.hotels_count > 0) improvementLabel = '🏨 Hotel';
       else if (prop.houses_count > 0) improvementLabel = `🏠 ${prop.houses_count} Casas`;
-      else if (isGroupMonopoly(rivalId, t.group)) improvementLabel = 'Monopolio x2';
+      else if (isGroupMonopoly(selectedRentRivalId, t.group)) improvementLabel = 'Monopolio x2';
 
       return `
         <div
           onclick="executePayRent('${prop.tile_id}', '${t.name}', ${rentAmount}, '${rival.name}')"
-          class="title-deed-card border-2 border-red-500 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm cursor-pointer hover:border-red-600 transition-all"
+          class="title-deed-card border border-red-200 dark:border-red-900/60 hover:border-red-500 dark:hover:border-red-500 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-xs cursor-pointer transition-all hover:-translate-y-0.5"
         >
-          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
-            PAGAR
-          </div>
-          <div class="p-2 space-y-1">
-            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+          <div style="background-color: ${grp.hex};" class="h-3.5 w-full"></div>
+          <div class="p-2.5 space-y-1">
+            <div class="font-heading font-bold text-xs uppercase text-slate-900 dark:text-white line-clamp-1" title="${t.name}">${t.name}</div>
             <div class="font-mono font-extrabold text-sm text-red-600 dark:text-red-400">$${rentAmount}</div>
-            <div class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">${improvementLabel}</div>
+            <div class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">${improvementLabel}</div>
           </div>
         </div>
       `;
@@ -1084,7 +1102,7 @@
 
     if (ownedGroups.length === 0) {
       container.innerHTML = '';
-      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4 py-4 text-center">Aún no posees ningún monopolio completo. Completa todas las calles de un color para poder construir casas y hoteles.</p>';
+      grid.innerHTML = '<p class="text-xs text-slate-400 italic col-span-4 py-8 text-center">Aún no posees ningún monopolio completo. Completa todas las calles de un color para poder construir casas y hoteles.</p>';
       return;
     }
 
@@ -1097,15 +1115,16 @@
       return `
         <button
           type="button"
+          title="${grp.name}"
           onclick="selectBuildMonopolyGroup('${grp.key}')"
-          class="px-3 py-1.5 rounded-xl text-xs font-heading font-bold transition-all border flex items-center gap-1.5 ${
+          class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center transition-all ${
             isSelected
-              ? 'ring-2 ring-emerald-500 shadow-sm border-transparent ' + grp.badge
-              : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600'
+              ? 'ring-2 ring-emerald-500 scale-105 shadow-md shadow-emerald-500/20'
+              : 'opacity-70 hover:opacity-100 hover:scale-102'
           }"
+          style="background-color: ${grp.hex};"
         >
-          <i data-lucide="${grp.icon}" class="w-3.5 h-3.5"></i>
-          <span>${grp.name}</span>
+          <i data-lucide="${grp.icon}" class="w-4 h-4 text-white drop-shadow-sm"></i>
         </button>
       `;
     }).join('');
@@ -1139,12 +1158,10 @@
       else if (houses > 0) statusHtml = `<span class="text-emerald-600 font-bold text-xs">${'🏠'.repeat(houses)} (${houses}/4)</span>`;
 
       return `
-        <div class="title-deed-card border-2 border-slate-900 dark:border-slate-600 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-sm">
-          <div style="background-color: ${grp.hex};" class="h-6 w-full text-white flex items-center justify-center font-bold text-[9px] tracking-widest uppercase">
-            CONSTRUIR
-          </div>
-          <div class="p-2 space-y-1.5">
-            <div class="font-heading font-extrabold text-xs uppercase text-slate-900 dark:text-white line-clamp-1">${t.name}</div>
+        <div class="title-deed-card border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 text-center shadow-xs">
+          <div style="background-color: ${grp.hex};" class="h-3.5 w-full"></div>
+          <div class="p-2.5 space-y-1.5">
+            <div class="font-heading font-bold text-xs uppercase text-slate-900 dark:text-white line-clamp-1" title="${t.name}">${t.name}</div>
             <div class="h-5 flex items-center justify-center">${statusHtml}</div>
             ${!isMaxed ? `
               <button
@@ -1193,11 +1210,45 @@
   }
 
   // ========================================================
-  // TAB 4: BANCA, SUERTE & HIPOTECAS
+  // TAB 4: BANCA (MOVIMIENTO BANCARIO MANUAL DIRECTO)
   // ========================================================
-  async function executeBankAction(actionType, customAmount = null, description = null) {
+  function setBankDirection(dir) {
+    activeBankDirection = dir;
+    const btnCredit = document.getElementById('bank-dir-credit');
+    const btnDebit = document.getElementById('bank-dir-debit');
+
+    if (dir === 'CREDIT') {
+      btnCredit.className = 'py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-emerald-600 text-white border-transparent shadow-xs';
+      btnDebit.className = 'py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100';
+    } else {
+      btnDebit.className = 'py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-red-600 text-white border-transparent shadow-xs';
+      btnCredit.className = 'py-2.5 px-3 rounded-xl text-xs font-heading font-bold transition-all border flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function setQuickBankAmount(amount, defaultDesc = '') {
+    const inputAmount = document.getElementById('bank-manual-amount');
+    const inputDesc = document.getElementById('bank-manual-desc');
+    inputAmount.value = amount;
+    if (defaultDesc && !inputDesc.value) {
+      inputDesc.value = defaultDesc;
+    }
+  }
+
+  async function submitManualBankAction() {
     const activePlayer = getActivePlayer();
     if (!activePlayer) return;
+
+    const amountVal = parseInt(document.getElementById('bank-manual-amount').value, 10);
+    const descVal = document.getElementById('bank-manual-desc').value.trim();
+
+    if (!amountVal || amountVal <= 0) {
+      showToast('Ingresa un monto válido mayor a $0', 'error');
+      return;
+    }
+
+    const actionType = activeBankDirection === 'CREDIT' ? 'BANK_PAYS_PLAYER' : 'PLAYER_PAYS_BANK';
 
     try {
       const res = await fetch(`/api/v1/games/${GAME_ID}/actions/bank`, {
@@ -1206,18 +1257,20 @@
         body: JSON.stringify({
           player_id: activePlayer.id,
           action_type: actionType,
-          custom_amount: customAmount,
-          description: description,
+          custom_amount: amountVal,
+          description: descVal || null,
           auto_advance_turn: true,
         })
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Error en operación bancaria');
+        throw new Error(err.detail || 'Error en movimiento bancario');
       }
 
-      showToast(`Operación bancaria registrada. Turno avanzado.`);
+      showToast(`Movimiento bancario registrado. Turno avanzado.`);
+      document.getElementById('bank-manual-amount').value = '';
+      document.getElementById('bank-manual-desc').value = '';
       closeActionModal();
       await refreshGameData();
     } catch (e) {
@@ -1225,28 +1278,89 @@
     }
   }
 
+  // ========================================================
+  // TAB 5: HIPOTECAS CON FILTRO POR GRUPO
+  // ========================================================
   function renderMortgageProperties() {
+    const filterContainer = document.getElementById('mortgage-group-filter-container');
     const container = document.getElementById('mortgage-properties-list');
     const activePlayer = getActivePlayer();
     if (!activePlayer) return;
 
     const owned = propertyStates.filter(p => p.owner_id === activePlayer.id);
     if (owned.length === 0) {
-      container.innerHTML = '<p class="text-xs text-slate-400 italic">No posees propiedades para hipotecar.</p>';
+      filterContainer.innerHTML = '';
+      container.innerHTML = '<p class="text-xs text-slate-400 italic col-span-2 py-6 text-center">No posees propiedades para hipotecar.</p>';
       return;
     }
 
-    container.innerHTML = owned.map(prop => {
+    const ownedTileObjs = owned.map(p => boardTiles.find(t => t.tile_id === p.tile_id)).filter(Boolean);
+    const uniqueGroups = [...new Set(ownedTileObjs.map(t => t.group))];
+
+    // Filtro por grupo si posee más de uno
+    if (uniqueGroups.length > 1) {
+      let filterHtml = `
+        <button
+          type="button"
+          title="Todas las propiedades"
+          onclick="filterMortgageByGroup('ALL')"
+          class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-all ${
+            selectedMortgageGroup === 'ALL'
+              ? 'ring-2 ring-emerald-500 bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+          }"
+        >
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
+
+      uniqueGroups.forEach(grpKey => {
+        const grp = OFFICIAL_GROUPS.find(g => g.key === grpKey) || { hex: '#475569', icon: 'home', name: grpKey };
+        const isSelected = selectedMortgageGroup === grpKey;
+        filterHtml += `
+          <button
+            type="button"
+            title="${grp.name}"
+            onclick="filterMortgageByGroup('${grpKey}')"
+            class="h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center transition-all ${
+              isSelected
+                ? 'ring-2 ring-emerald-500 scale-105 shadow-sm'
+                : 'opacity-70 hover:opacity-100'
+            }"
+            style="background-color: ${grp.hex};"
+          >
+            <i data-lucide="${grp.icon}" class="w-3.5 h-3.5 text-white"></i>
+          </button>
+        `;
+      });
+      filterContainer.innerHTML = filterHtml;
+    } else {
+      filterContainer.innerHTML = '';
+    }
+
+    let filteredProps = owned;
+    if (selectedMortgageGroup !== 'ALL') {
+      filteredProps = owned.filter(p => {
+        const t = boardTiles.find(tile => tile.tile_id === p.tile_id);
+        return t && t.group === selectedMortgageGroup;
+      });
+    }
+
+    container.innerHTML = filteredProps.map(prop => {
       const t = boardTiles.find(tile => tile.tile_id === prop.tile_id);
       if (!t) return '';
+      const grp = OFFICIAL_GROUPS.find(g => g.key === t.group) || { hex: '#475569' };
       const mortgageVal = Math.floor(t.price / 2);
       const unmortgageCost = Math.floor(mortgageVal * 1.1);
 
       return `
-        <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
-          <div>
-            <span class="font-bold text-slate-900 dark:text-white">${t.name}</span>
-            <span class="text-[10px] text-slate-400 block">${prop.is_mortgaged ? '🔒 Hipotecada' : 'Libre'}</span>
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <div style="background-color: ${grp.hex};" class="w-2.5 h-7 rounded-sm"></div>
+            <div>
+              <span class="font-bold text-slate-900 dark:text-white">${t.name}</span>
+              <span class="text-[10px] text-slate-400 block">${prop.is_mortgaged ? '🔒 Hipotecada' : 'Libre'}</span>
+            </div>
           </div>
 
           <button
@@ -1263,6 +1377,13 @@
         </div>
       `;
     }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function filterMortgageByGroup(grpKey) {
+    selectedMortgageGroup = grpKey;
+    renderMortgageProperties();
   }
 
   async function executeMortgage(tileId) {
@@ -1290,7 +1411,7 @@
   }
 
   // ========================================================
-  // TAB 5: GESTIÓN DE CÁRCEL (CONTROL ESTRICTO DE 3 TURNOS)
+  // TAB 6: GESTIÓN DE CÁRCEL (OFICIAL 3 TURNOS)
   // ========================================================
   function renderJailPanel() {
     const statusBox = document.getElementById('jail-status-box');
@@ -1310,7 +1431,7 @@
             </h4>
             <p class="text-xs text-slate-500 dark:text-slate-400">
               Ronda <strong class="text-slate-800 dark:text-slate-200">${activePlayer.jail_turns}</strong> de 3 turnos permitidos.
-              ${mustPay ? '<span class="block text-red-600 font-bold mt-0.5">¡3er turno cumplido! Las reglas oficiales exigen pagar los $50 de fianza o usar carta para continuar.</span>' : ''}
+              ${mustPay ? '<span class="block text-red-600 font-bold mt-0.5">¡3er turno cumplido! Las reglas oficiales exigen pagar la fianza de $50 o usar carta para continuar.</span>' : ''}
             </p>
           </div>
         </div>
@@ -1320,7 +1441,7 @@
         <button
           type="button"
           onclick="executeJailAction('PAY_FINE')"
-          class="w-full p-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-sm active:scale-95"
+          class="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
         >
           <span>Pagar Fianza de Salida</span>
           <span class="font-mono font-bold">$50</span>
@@ -1329,7 +1450,7 @@
         <button
           type="button"
           onclick="executeJailAction('USE_CARD')"
-          class="w-full p-3 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-sm active:scale-95"
+          class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
         >
           <span>Usar Carta "Salga Libre de la Cárcel"</span>
           <span>Gratis</span>
@@ -1339,17 +1460,14 @@
           <button
             type="button"
             onclick="executeJailAction('STAY')"
-            class="w-full p-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all text-center active:scale-95"
+            class="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all text-center active:scale-95"
           >
             Cumplir Turno en Prisión (Pasar Ronda)
           </button>
         ` : `
-          <button
-            disabled
-            class="w-full p-2.5 rounded-xl bg-slate-200 dark:bg-slate-700/40 text-slate-400 text-xs font-bold cursor-not-allowed text-center"
-          >
+          <div class="p-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-center text-xs text-red-600 dark:text-red-400 font-bold">
             Límite de 3 turnos alcanzado (Fianza Obligatoria)
-          </button>
+          </div>
         `}
       `;
     } else {
@@ -1371,7 +1489,7 @@
         <button
           type="button"
           onclick="executeJailAction('GO_TO_JAIL')"
-          class="w-full p-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
+          class="w-full p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95"
         >
           <span>🚨 ¡Enviar a la Cárcel! (Casilla 30 o 3 Dobles)</span>
         </button>
@@ -1408,12 +1526,25 @@
   }
 
   // ========================================================
-  // PASAR TURNO MANUAL (CASILLAS NEUTRALES)
+  // PASAR TURNO MANUAL (INTEGRACIÓN OFICIAL CÁRCEL 3 TURNOS)
   // ========================================================
   document.getElementById('advance-turn-btn').addEventListener('click', async () => {
+    const activePlayer = getActivePlayer();
+    
+    // Alerta y bloqueo temprano si el jugador en turno ya cumplió 3 rondas en la cárcel
+    if (activePlayer && activePlayer.in_jail && activePlayer.jail_turns >= 3) {
+      showToast(`¡${activePlayer.name} cumplió 3 turnos en prisión! Debes pagar la fianza de $50 o usar carta para continuar.`, 'error');
+      openActiveTurnModal();
+      switchModalTab('jail');
+      return;
+    }
+
     try {
       const res = await fetch(`/api/v1/games/${GAME_ID}/advance-turn`, { method: 'POST' });
-      if (!res.ok) throw new Error('Error al avanzar turno');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al avanzar turno');
+      }
       showToast(`Turno avanzado al siguiente jugador.`);
       await refreshGameData();
     } catch (e) {

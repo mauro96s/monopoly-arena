@@ -108,6 +108,77 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.assertGreaterEqual(podium.rankings[0].net_worth, podium.rankings[1].net_worth)
         self.assertEqual(self.game_repo.get_by_id(self.game.id).status, GameStatus.FINISHED)
 
+    def test_manual_bank_action_credit_and_debit(self):
+        # El Banco paga $200 a Ana
+        credit_res = self.bank_uc.execute(BankActionInputDTO(
+            game_id=self.game.id,
+            player_id=self.p1.id,
+            action_type="BANK_PAYS_PLAYER",
+            custom_amount=200,
+            description="Premio",
+            auto_advance_turn=False,
+        ))
+        self.assertTrue(credit_res.is_credit)
+        self.assertEqual(credit_res.remaining_balance, 1700)
+
+        # Ana paga $150 al Banco
+        debit_res = self.bank_uc.execute(BankActionInputDTO(
+            game_id=self.game.id,
+            player_id=self.p1.id,
+            action_type="PLAYER_PAYS_BANK",
+            custom_amount=150,
+            description="Impuesto",
+            auto_advance_turn=False,
+        ))
+        self.assertFalse(debit_res.is_credit)
+        self.assertEqual(debit_res.remaining_balance, 1550)
+
+        # Fondos insuficientes
+        with self.assertRaises(InsufficientFundsError):
+            self.bank_uc.execute(BankActionInputDTO(
+                game_id=self.game.id,
+                player_id=self.p1.id,
+                action_type="PLAYER_PAYS_BANK",
+                custom_amount=99999,
+                auto_advance_turn=False,
+            ))
+
+    def test_advance_turn_jail_turn_increment_and_lock(self):
+        from src.presentation.routers.games_router import advance_turn
+        from fastapi import HTTPException
+
+        # Poner a Ana en la cárcel con 1 turno
+        self.jail_uc.execute(JailActionInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, action="GO_TO_JAIL", auto_advance_turn=False
+        ))
+        ana = self.player_repo.get_by_id(self.p1.id)
+        self.assertTrue(ana.in_jail)
+        self.assertEqual(ana.jail_turns, 1)
+
+        # Es el turno de Ana (índice 0). Avanzar turno incrementa su turno de cárcel a 2
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
+        ana = self.player_repo.get_by_id(self.p1.id)
+        self.assertEqual(ana.jail_turns, 2)
+
+        # Completar la ronda de Beto y Carlos para volver a Ana
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Beto
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Carlos
+
+        # Ana vuelve a estar en turno con jail_turns = 2. Al avanzar turno se incrementa a 3
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
+        ana = self.player_repo.get_by_id(self.p1.id)
+        self.assertEqual(ana.jail_turns, 3)
+
+        # Completar la ronda de nuevo para que sea el turno de Ana con 3 turnos cumplidos
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Beto
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Carlos
+
+        # Ahora Ana tiene jail_turns = 3 y es su turno. Intentar pasar turno debe bloquearse con HTTP 400
+        with self.assertRaises(HTTPException) as cm:
+            advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
+        self.assertEqual(cm.exception.status_code, 400)
+        self.assertIn("3 turnos en la Cárcel", cm.exception.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

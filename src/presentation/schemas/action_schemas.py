@@ -107,7 +107,7 @@ class JailActionResponse(BaseModel):
 
 class BankActionRequest(BaseModel):
     player_id: int
-    action_type: str = Field(..., description="'PASS_GO', 'INCOME_TAX', 'LUXURY_TAX', 'CHANCE_REWARD', 'CHANCE_PENALTY'")
+    action_type: str = Field(..., description="'BANK_PAYS_PLAYER', 'PLAYER_PAYS_BANK', 'PASS_GO'")
     custom_amount: Optional[int] = None
     description: Optional[str] = None
     auto_advance_turn: bool = True
