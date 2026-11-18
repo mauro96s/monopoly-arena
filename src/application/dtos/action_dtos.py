@@ -97,8 +97,10 @@ class MortgageOutputDTO:
 class JailActionInputDTO:
     game_id: int
     player_id: int
-    action: str  # "PAY_FINE", "USE_CARD", "GO_TO_JAIL", "STAY"
-    auto_advance_turn: bool = True
+    action: str  # "PAY_FINE", "USE_CARD", "TRY_DOUBLES", "GO_TO_JAIL"
+    dice_1: Optional[int] = None
+    dice_2: Optional[int] = None
+    auto_advance_turn: bool = False
 
 
 @dataclass(frozen=True)
@@ -111,8 +113,14 @@ class JailActionOutputDTO:
     amount_paid: int
     remaining_balance: int
     transaction_id: int
-    current_turn: int
-    current_player_index: int
+    dice_1: Optional[int] = None
+    dice_2: Optional[int] = None
+    is_doubles: Optional[bool] = None
+    new_position: Optional[int] = None
+    action_required: Optional[str] = None
+    action_details: Optional[dict] = None
+    current_turn: int = 1
+    current_player_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -169,6 +177,7 @@ class RollDiceInputDTO:
     total_roll: Optional[int] = None
     dice_sum: Optional[int] = None
     auto_advance_turn: bool = False
+    is_jail_attempt: bool = False
 
 
 @dataclass(frozen=True)
@@ -191,6 +200,9 @@ class RollDiceOutputDTO:
     player_money: int
     player_status: str = "ACTIVE"
     in_jail: bool = False
+    extra_turn: bool = False
+    has_rolled_dice: bool = True
+    consecutive_doubles: int = 0
     current_turn: int = 1
     current_player_index: int = 0
     transaction_id: Optional[int] = None

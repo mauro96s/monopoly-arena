@@ -59,7 +59,7 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.buy_uc = BuyPropertyUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
         self.rent_uc = PayRentUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
         self.build_uc = BuildHouseUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
-        self.jail_uc = JailActionUseCase(self.game_repo, self.player_repo, self.tx_repo)
+        self.jail_uc = JailActionUseCase(self.game_repo, self.player_repo, self.tx_repo, self.property_repo)
         self.bank_uc = BankActionUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
         self.finish_uc = FinishGameUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
         self.roll_uc = RollDiceUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
@@ -216,13 +216,17 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.assertEqual(roll_res.total_roll, 7)
         self.assertFalse(roll_res.passed_go)
 
+        # Simular avance de turno para permitir nueva tirada
+        self.game.has_rolled_dice = False
+        self.game_repo.save(self.game)
+
         # Ana se encuentra en pos 38 y tira 4 -> avanza a pos 2 pasando por la SALIDA
         self.p1.position = 38
         self.p1.money = 1000
         self.player_repo.save(self.p1)
 
         roll_res2 = self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id, player_id=self.p1.id, total_roll=4
+            game_id=self.game.id, player_id=self.p1.id, dice_1=2, dice_2=2
         ))
         self.assertEqual(roll_res2.old_position, 38)
         self.assertEqual(roll_res2.new_position, 2)
@@ -231,49 +235,131 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         p1_updated = self.player_repo.get_by_id(self.p1.id)
         self.assertEqual(p1_updated.money, 1200)
 
-    def test_roll_dice_go_to_jail(self):
-        # Ana está en pos 25 y tira 5 -> cae en pos 30 (¡Vaya a la Cárcel!)
-        self.p1.position = 25
-        self.player_repo.save(self.p1)
-
-        res = self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id, player_id=self.p1.id, total_roll=5
+    def test_roll_dice_enforce_single_roll_per_turn(self):
+        # Ana tira los dados sin sacar dobles (3 + 4 = 7)
+        self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, dice_1=3, dice_2=4
         ))
-        self.assertEqual(res.action_required, "WENT_TO_JAIL")
-        self.assertEqual(res.new_position, 10) # Enviada a Cárcel
+        # Intento de 2da tirada en el mismo turno debe ser rechazado
+        with self.assertRaises(InvalidGameActionError):
+            self.roll_uc.execute(RollDiceInputDTO(
+                game_id=self.game.id, player_id=self.p1.id, dice_1=2, dice_2=3
+            ))
+
+    def test_roll_dice_doubles_and_3rd_doubles_jail(self):
+        # 1er doble: 4 + 4 -> otorga turno extra
+        res1 = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, dice_1=4, dice_2=4
+        ))
+        self.assertTrue(res1.is_doubles)
+        self.assertTrue(res1.extra_turn)
+        self.assertEqual(res1.consecutive_doubles, 1)
+
+        # 2do doble: 5 + 5 -> otorga turno extra
+        res2 = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, dice_1=5, dice_2=5
+        ))
+        self.assertTrue(res2.is_doubles)
+        self.assertTrue(res2.extra_turn)
+        self.assertEqual(res2.consecutive_doubles, 2)
+
+        # 3er doble: 6 + 6 -> ¡DIRECTO A LA CÁRCEL!
+        res3 = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, dice_1=6, dice_2=6
+        ))
+        self.assertEqual(res3.action_required, "WENT_TO_JAIL")
+        self.assertEqual(res3.new_position, 10)
+        self.assertFalse(res3.extra_turn)
+
         p1_updated = self.player_repo.get_by_id(self.p1.id)
         self.assertTrue(p1_updated.in_jail)
         self.assertEqual(p1_updated.position, 10)
 
-    def test_roll_dice_default_active_player_and_dice_sum(self):
-        # Usando MovePlayerByDiceUseCase sin especificar player_id (asume el del turno activo: Ana)
-        self.p1.position = 35
-        self.p1.money = 500
-        self.player_repo.save(self.p1)
-        self.game.current_player_index = 0
-        self.game_repo.save(self.game)
-
-        # Tirar con dice_sum=7 -> 35 + 7 = 42 -> 2 (pasa por salida: +$200) y auto_advance_turn=True
-        res = self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id,
-            player_id=None,
-            dice_sum=7,
-            auto_advance_turn=True,
-        ))
-        self.assertEqual(res.player_id, self.p1.id)
-        self.assertEqual(res.old_position, 35)
-        self.assertEqual(res.new_position, 2)
-        self.assertTrue(res.passed_go)
-        self.assertEqual(res.player_money, 700)
-        self.assertEqual(res.total_roll, 7)
-
-        # Comprobar que avanzó el turno al jugador 2 (Beto)
+        # Comprobar que avanzó el turno al rival
         g_updated = self.game_repo.get_by_id(self.game.id)
         self.assertEqual(g_updated.current_player_index, 1)
 
-        # Comprobar que se registró la transacción en el ledger
-        txs = self.tx_repo.list_by_game(self.game.id)
-        self.assertTrue(any(tx.transaction_type.value == "PASS_GO" and tx.amount == 200 for tx in txs))
+    def test_roll_dice_automatic_rent_and_tax(self):
+        # Beto compra BOARDWALK (pos 39)
+        self.p2.position = 39
+        self.player_repo.save(self.p2)
+        self.game.current_player_index = 1
+        self.game_repo.save(self.game)
+
+        self.buy_uc.execute(BuyPropertyInputDTO(
+            game_id=self.game.id, player_id=self.p2.id, tile_id="BOARDWALK", auto_advance_turn=False
+        ))
+        beto_balance_after_buy = self.player_repo.get_by_id(self.p2.id).money
+
+        # Ahora es turno de Ana (jugador 0)
+        self.game.current_player_index = 0
+        self.game.has_rolled_dice = False
+        self.game_repo.save(self.game)
+
+        # Ana está en pos 35 y tira 4 -> cae exactamente en BOARDWALK (pos 39)
+        self.p1.position = 35
+        self.p1.money = 1000
+        self.player_repo.save(self.p1)
+
+        res = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, total_roll=4
+        ))
+        self.assertEqual(res.action_required, "RENT_PAID_AUTOMATICALLY")
+        self.assertEqual(res.action_details["owner_id"], self.p2.id)
+
+        # Saldo de Ana descontado y Beto cobró renta de Boardwalk ($50 renta base)
+        p1_after = self.player_repo.get_by_id(self.p1.id)
+        p2_after = self.player_repo.get_by_id(self.p2.id)
+        self.assertEqual(p1_after.money, 950)
+        self.assertEqual(p2_after.money, beto_balance_after_buy + 50)
+
+    def test_jail_flow_try_doubles_and_mandatory_3rd_turn(self):
+        # Ana está en la cárcel con 0 turnos acumulados
+        self.p1.in_jail = True
+        self.p1.jail_turns = 0
+        self.p1.position = 10
+        self.player_repo.save(self.p1)
+
+        # 1. Tirar en cárcel sin dobles (1 + 2 = 3)
+        res_fail = self.jail_uc.execute(JailActionInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, action="TRY_DOUBLES", dice_1=1, dice_2=2
+        ))
+        self.assertTrue(res_fail.in_jail)
+        self.assertEqual(res_fail.jail_turns, 1)
+
+        # El turno finalizó y pasó al siguiente jugador
+        g1 = self.game_repo.get_by_id(self.game.id)
+        self.assertEqual(g1.current_player_index, 1)
+
+        # Devolver turno a Ana (simulando 2da ronda)
+        self.game.current_player_index = 0
+        self.game_repo.save(self.game)
+
+        # 2. 2do turno en cárcel sin dobles (3 + 4 = 7)
+        res_fail2 = self.jail_uc.execute(JailActionInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, action="TRY_DOUBLES", dice_1=3, dice_2=4
+        ))
+        self.assertEqual(res_fail2.jail_turns, 2)
+
+        # Devolver turno a Ana (este es su 3er turno, acumula 2 turnos previos)
+        self.game.current_player_index = 0
+        self.game_repo.save(self.game)
+
+        # 3. Intentar sacar dobles en su 3er turno DEBE ESTAR BLOQUEADO
+        with self.assertRaises(InvalidGameActionError):
+            self.jail_uc.execute(JailActionInputDTO(
+                game_id=self.game.id, player_id=self.p1.id, action="TRY_DOUBLES", dice_1=5, dice_2=5
+            ))
+
+        # 4. Pagar fianza obligatoria de $50
+        res_pay = self.jail_uc.execute(JailActionInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, action="PAY_FINE"
+        ))
+        self.assertFalse(res_pay.in_jail)
+        self.assertEqual(res_pay.amount_paid, 50)
+        # Comprobar que game.has_rolled_dice == False (puede tirar para moverse en este turno)
+        g_ready = self.game_repo.get_by_id(self.game.id)
+        self.assertFalse(g_ready.has_rolled_dice)
 
 
 if __name__ == "__main__":

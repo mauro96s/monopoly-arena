@@ -18,6 +18,8 @@ class GameModel(Base):
     status = Column(SQLEnum(GameStatus), default=GameStatus.WAITING, nullable=False)
     current_turn = Column(Integer, default=1, nullable=False)
     current_player_index = Column(Integer, default=0, nullable=False)
+    has_rolled_dice = Column(Boolean, default=False, nullable=False)
+    consecutive_doubles = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
     # Relaciones
@@ -38,6 +40,7 @@ class PlayerModel(Base):
     is_bankrupt = Column(Boolean, default=False, nullable=False)
     in_jail = Column(Boolean, default=False, nullable=False)
     jail_turns = Column(Integer, default=0, nullable=False)
+    out_of_jail_cards = Column(Integer, default=0, nullable=False)
 
     # Relaciones
     game = relationship("GameModel", back_populates="players")

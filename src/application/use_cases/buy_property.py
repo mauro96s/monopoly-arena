@@ -50,6 +50,9 @@ class BuyPropertyUseCase:
         if not player or player.game_id != dto.game_id:
             raise PlayerNotFoundError(f"Jugador {dto.player_id} no pertenece a esta partida.")
 
+        if player.in_jail:
+            raise InvalidGameActionError(f"{player.name} está en la Cárcel y no puede comprar propiedades hasta obtener su libertad.")
+
         # 3. Obtener la regla / estrategia de la casilla según la variante del juego (Open/Closed)
         tile_strategy = BoardRuleRegistry.get_strategy(game.variant, dto.tile_id)
         if not tile_strategy:

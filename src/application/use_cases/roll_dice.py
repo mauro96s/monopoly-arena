@@ -6,7 +6,7 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.models.transaction import Transaction
-from src.domain.models.enums import TransactionType, TileType
+from src.domain.models.enums import TransactionType, TileType, GameStatus
 from src.domain.rules.rule_registry import BoardRuleRegistry
 from src.domain.exceptions import (
     GameNotFoundError,
@@ -17,13 +17,16 @@ from src.domain.exceptions import (
 
 class RollDiceUseCase:
     """
-    Caso de Uso: Tirar Dados y Mover Jugador por el Tablero en Vivo.
-    - Soporta tiro aleatorio 2d6 o valor ingresado manualmente (dice_sum / total_roll).
-    - Asume automáticamente el jugador en turno activo si no se envía player_id.
-    - Actualiza posición: (position + roll) % 40.
-    - Detecta paso por la SALIDA (casilla 0) y abona $200 automáticamente.
-    - Registra el movimiento en el Ledger y avanza el turno si se requiere.
-    - Detecta casilla de destino (Propiedad libre, Renta a rival, Impuestos, Cárcel, Neutral).
+    Caso de Uso: Tirar Dados y Mover Jugador por el Tablero en Vivo (Reglas Oficiales).
+    - Máquina de Estados Estricta: 1 sola tirada por turno (a menos que saque dobles).
+    - Bloqueo en Cárcel: Si está en prisión no puede moverse libremente por aquí.
+    - Regla de Dobles: Turno extra si saca par; si acumula 3 dobles seguidos va a la Cárcel.
+    - Paso por la Salida (GO): Acredita +$200 automático y registra en el Ledger.
+    - Activación Post-Movimiento Inmediata:
+        * Calle sin dueño -> BUY_PROPERTY.
+        * Propiedad de rival -> Ejecuta y registra PAY_RENT automáticamente.
+        * Impuestos -> Descuenta monto fijo y registra TAX_PAYMENT automáticamente.
+        * Casilla 30 (Vaya a la Cárcel) -> Envía a posición 10, in_jail = True y finaliza turno.
     """
 
     def __init__(
@@ -43,26 +46,45 @@ class RollDiceUseCase:
         game = self._game_repo.get_by_id(dto.game_id)
         if not game:
             raise GameNotFoundError(f"Partida {dto.game_id} no existe.")
+        if game.status == GameStatus.FINISHED:
+            raise InvalidGameActionError("La partida ya ha finalizado.")
 
         all_players = self._player_repo.list_by_game(dto.game_id)
         if not all_players:
             raise InvalidGameActionError("La partida no tiene jugadores registrados.")
 
-        # 2. Validar o resolver jugador activo
-        if dto.player_id is not None:
-            player = self._player_repo.get_by_id(dto.player_id)
-            if not player or player.game_id != dto.game_id:
-                raise PlayerNotFoundError(f"Jugador {dto.player_id} no válido.")
-        else:
-            player = all_players[game.current_player_index % len(all_players)]
+        # 2. Validar jugador activo
+        active_player = all_players[game.current_player_index % len(all_players)]
+        if dto.player_id is not None and dto.player_id != active_player.id:
+            raise InvalidGameActionError(
+                f"Acción bloqueada: No es el turno del jugador {dto.player_id}. Es el turno de {active_player.name}."
+            )
+        player = active_player
 
-        # 3. Calcular o simular dados
+        # 3. Bloqueo si está en la cárcel
+        if player.in_jail and not dto.is_jail_attempt:
+            raise InvalidGameActionError(
+                f"{player.name} está en la Cárcel. Debe pagar la fianza de $50, usar una tarjeta o intentar sacar dobles en el panel de Cárcel."
+            )
+
+        # 4. Control de Tirada Única por Turno (a menos que tenga turno extra por dobles)
+        if game.has_rolled_dice and not dto.is_jail_attempt:
+            raise InvalidGameActionError(
+                f"{player.name} ya ha tirado los dados en este turno. Resuelve la acción de la casilla o pasa el turno."
+            )
+
+        # 5. Calcular o simular dados
         effective_sum = dto.dice_sum if dto.dice_sum is not None else dto.total_roll
 
         if effective_sum and effective_sum > 0:
             total_roll = effective_sum
-            dice_1 = total_roll // 2
-            dice_2 = total_roll - dice_1
+            # Si el usuario mandó suma fija, intentamos inferir si son dados específicos o dividimos
+            if dto.dice_1 and dto.dice_2 and (dto.dice_1 + dto.dice_2 == total_roll):
+                dice_1 = dto.dice_1
+                dice_2 = dto.dice_2
+            else:
+                dice_1 = total_roll // 2
+                dice_2 = total_roll - dice_1
         elif dto.dice_1 and dto.dice_2:
             dice_1 = dto.dice_1
             dice_2 = dto.dice_2
@@ -75,46 +97,34 @@ class RollDiceUseCase:
         is_doubles = (dice_1 == dice_2)
         old_position = player.position
 
-        # 4. Manejo de Cárcel
-        if player.in_jail:
-            if is_doubles:
-                # Saca dobles: ¡Queda libre de inmediato y avanza los dados!
-                player.in_jail = False
-                player.jail_turns = 0
-                self._tx_repo.record(
+        # 6. Regla de Dobles Consecutivos
+        extra_turn = False
+        if is_doubles:
+            game.consecutive_doubles += 1
+            if game.consecutive_doubles >= 3:
+                # ¡3 dobles seguidos! Directo a la Cárcel y finaliza turno
+                player.in_jail = True
+                player.jail_turns = 1
+                player.position = 10
+                self._player_repo.save(player)
+
+                jail_tx = self._tx_repo.record(
                     Transaction(
                         id=None,
                         game_id=game.id,
                         turn_number=game.current_turn,
                         transaction_type=TransactionType.BANK_TRANSFER,
                         amount=0,
-                        description=f"{player.name} sacó dobles ({dice_1}+{dice_2}) y salió libre de la Cárcel",
+                        description=f"🚨 {player.name} sacó 3 dobles consecutivos ({dice_1}+{dice_2}) y fue enviado directo a la Cárcel",
                         source_player_id=None,
                         target_player_id=player.id,
                         tile_id="JAIL",
                     )
                 )
-                new_position = (old_position + total_roll) % 40
-            else:
-                # No sacó dobles: Permanece en prisión
-                player.jail_turns += 1
-                self._player_repo.save(player)
-                self._tx_repo.record(
-                    Transaction(
-                        id=None,
-                        game_id=game.id,
-                        turn_number=game.current_turn,
-                        transaction_type=TransactionType.BANK_TRANSFER,
-                        amount=0,
-                        description=f"{player.name} tiró {dice_1}+{dice_2} ({total_roll}) sin dobles y sigue en prisión (Turno #{player.jail_turns})",
-                        source_player_id=None,
-                        target_player_id=None,
-                        tile_id="JAIL",
-                    )
-                )
-                if dto.auto_advance_turn and all_players:
-                    game.advance_turn(len(all_players))
-                    self._game_repo.save(game)
+
+                # Fin de turno forzado
+                game.advance_turn(len(all_players))
+                self._game_repo.save(game)
 
                 return RollDiceOutputDTO(
                     game_id=game.id,
@@ -123,59 +133,73 @@ class RollDiceUseCase:
                     dice_1=dice_1,
                     dice_2=dice_2,
                     total_roll=total_roll,
-                    is_doubles=is_doubles,
+                    is_doubles=True,
                     old_position=old_position,
-                    new_position=old_position,
+                    new_position=10,
                     passed_go=False,
                     landed_tile_id="JAIL",
                     landed_tile_name="Cárcel / Visitas",
                     landed_tile_type="JAIL",
-                    action_required="IN_JAIL",
-                    action_details={"jail_turns": player.jail_turns, "must_pay_fine": player.jail_turns >= 3},
+                    action_required="WENT_TO_JAIL",
+                    action_details={"reason": "3_CONSECUTIVE_DOUBLES", "jail_turns": 1},
                     player_money=player.money,
                     player_status="IN_JAIL",
                     in_jail=True,
+                    extra_turn=False,
+                    has_rolled_dice=False,
+                    consecutive_doubles=0,
                     current_turn=game.current_turn,
                     current_player_index=game.current_player_index,
-                    transaction_id=None,
+                    transaction_id=jail_tx.id,
                 )
+            else:
+                # Menos de 3 dobles: otorga turno extra
+                extra_turn = True
+                # Permitimos tirar de nuevo marcando has_rolled_dice = False
+                game.has_rolled_dice = False
         else:
-            new_position = (old_position + total_roll) % 40
+            # No sacó dobles: ya usó su tirada única de este turno
+            game.consecutive_doubles = 0
+            game.has_rolled_dice = True
 
-        # 5. Detectar paso por la SALIDA (casilla 0) y abonar $200
+        # 7. Movimiento y Detección de Salida (GO)
+        new_position = (old_position + total_roll) % 40
         passed_go = (new_position < old_position)
-        tx_id = None
+        go_tx_id = None
         if passed_go:
             player.add_money(200)
-            tx = self._tx_repo.record(
+            go_tx = self._tx_repo.record(
                 Transaction(
                     id=None,
                     game_id=game.id,
                     turn_number=game.current_turn,
                     transaction_type=TransactionType.PASS_GO,
                     amount=200,
-                    description=f"{player.name} pasó por la SALIDA y cobró $200 de la Banca",
+                    description=f"🚩 {player.name} pasó por la SALIDA y cobró $200 de la Banca",
                     source_player_id=None,
                     target_player_id=player.id,
                     tile_id="GO",
                 )
             )
-            tx_id = tx.id
+            go_tx_id = go_tx.id
 
-        # 6. Localizar definición de casilla
+        # 8. Localizar definición de casilla
         board = BoardRuleRegistry.get_board(game.variant)
         tile_strategy = next((s for s in board.values() if s.definition.position == new_position), None)
         if not tile_strategy:
             raise InvalidGameActionError(f"Casilla no encontrada en posición {new_position}.")
 
         tile_def = tile_strategy.definition
+        last_tx_id = go_tx_id
 
-        # 7. Casilla Especial: ¡Vaya a la Cárcel! (Posición 30)
+        # 9. Evaluar casilla de destino
+        # CASO A: Casilla 30 (¡Vaya a la Cárcel!)
         if new_position == 30:
             player.in_jail = True
             player.jail_turns = 1
             player.position = 10  # Trasladar a prisión
             self._player_repo.save(player)
+
             jail_tx = self._tx_repo.record(
                 Transaction(
                     id=None,
@@ -183,15 +207,16 @@ class RollDiceUseCase:
                     turn_number=game.current_turn,
                     transaction_type=TransactionType.BANK_TRANSFER,
                     amount=0,
-                    description=f"{player.name} cayó en ¡Vaya a la Cárcel! y fue enviado directo a prisión",
+                    description=f"👮 {player.name} cayó en ¡Vaya a la Cárcel! y fue arrestado",
                     source_player_id=None,
-                    target_player_id=None,
+                    target_player_id=player.id,
                     tile_id="GO_TO_JAIL",
                 )
             )
-            if dto.auto_advance_turn and all_players:
-                game.advance_turn(len(all_players))
-                self._game_repo.save(game)
+
+            # Fin de turno forzado al ir a prisión (pierde cualquier turno extra)
+            game.advance_turn(len(all_players))
+            self._game_repo.save(game)
 
             return RollDiceOutputDTO(
                 game_id=game.id,
@@ -212,55 +237,123 @@ class RollDiceUseCase:
                 player_money=player.money,
                 player_status="IN_JAIL",
                 in_jail=True,
+                extra_turn=False,
+                has_rolled_dice=False,
+                consecutive_doubles=0,
                 current_turn=game.current_turn,
                 current_player_index=game.current_player_index,
-                transaction_id=jail_tx.id if jail_tx else tx_id,
+                transaction_id=jail_tx.id,
             )
 
-        # 8. Actualizar posición definitiva del jugador
+        # Actualizar posición definitiva del jugador
         player.position = new_position
         self._player_repo.save(player)
 
-        # 9. Evaluar acciones contextuales por casilla
         action_required = "NEUTRAL"
         action_details = {}
 
+        # CASO B: Propiedad comprable (Calles, Ferrocarriles, Servicios)
         if tile_strategy.can_be_purchased():
             prop = self._property_repo.get_by_tile(game.id, tile_def.tile_id)
             if not prop or prop.owner_id is None:
-                action_required = "CAN_BUY"
+                # Sin dueño -> Puede comprarla
+                action_required = "BUY_PROPERTY"
                 action_details = {
                     "price": tile_def.price,
                     "base_rent": tile_def.base_rent,
                     "group": tile_def.group.value,
                     "can_afford": player.can_afford(tile_def.price),
+                    "tile_id": tile_def.tile_id,
+                    "tile_name": tile_def.name,
                 }
             elif prop.owner_id == player.id:
+                # Propiedad propia
                 action_required = "OWNED_BY_SELF"
                 action_details = {
                     "houses_count": prop.houses_count,
                     "hotels_count": prop.hotels_count,
+                    "tile_name": tile_def.name,
                 }
             else:
+                # Propiedad de un rival
                 if prop.is_mortgaged:
-                    action_required = "MORTGAGED"
-                    action_details = {"owner_id": prop.owner_id}
+                    action_required = "MORTGAGED_NO_RENT"
+                    action_details = {"owner_id": prop.owner_id, "tile_name": tile_def.name}
                 else:
+                    # ¡EJECUTAR Y REGISTRAR AUTOMÁTICAMENTE EL PAY_RENT!
                     owner = self._player_repo.get_by_id(prop.owner_id)
                     all_props = self._property_repo.list_by_owner(game.id, prop.owner_id)
-                    rent_amount = tile_strategy.calculate_rent(prop, all_props, total_roll)
-                    action_required = "MUST_PAY_RENT"
+                    calculated_rent = tile_strategy.calculate_rent(prop, all_props, total_roll)
+
+                    # Cobro automático de renta
+                    rent_to_pay = min(player.money, calculated_rent)
+                    if rent_to_pay > 0:
+                        player.deduct_money(rent_to_pay)
+                        if owner:
+                            owner.add_money(rent_to_pay)
+                            self._player_repo.save(owner)
+                        self._player_repo.save(player)
+
+                    rent_tx = self._tx_repo.record(
+                        Transaction(
+                            id=None,
+                            game_id=game.id,
+                            turn_number=game.current_turn,
+                            transaction_type=TransactionType.PAY_RENT,
+                            amount=rent_to_pay,
+                            description=f"💸 {player.name} cayó en {tile_def.name} y pagó ${rent_to_pay} de renta a {owner.name if owner else 'Rival'}",
+                            source_player_id=player.id,
+                            target_player_id=owner.id if owner else None,
+                            tile_id=tile_def.tile_id,
+                        )
+                    )
+                    last_tx_id = rent_tx.id
+
+                    action_required = "RENT_PAID_AUTOMATICALLY"
                     action_details = {
                         "owner_id": prop.owner_id,
                         "owner_name": owner.name if owner else "Rival",
-                        "rent_amount": rent_amount,
+                        "rent_amount": rent_to_pay,
+                        "tile_name": tile_def.name,
                     }
-        elif tile_def.tile_type == TileType.TAX:
-            action_required = "PAY_TAX"
-            action_details = {"tax_amount": tile_def.price or 100}
 
-        # 10. Registrar movimiento en historial si no hubo transacción previa de Salida
-        if not tx_id:
+        # CASO C: Casilla de Impuestos (TAX)
+        elif tile_def.tile_type == TileType.TAX:
+            # ¡DESCONTAR AUTOMÁTICAMENTE EL MONTO FIJO!
+            tax_amount = tile_def.price or 100
+            tax_to_pay = min(player.money, tax_amount)
+            if tax_to_pay > 0:
+                player.deduct_money(tax_to_pay)
+                self._player_repo.save(player)
+
+            tax_tx = self._tx_repo.record(
+                Transaction(
+                    id=None,
+                    game_id=game.id,
+                    turn_number=game.current_turn,
+                    transaction_type=TransactionType.TAX_PAYMENT,
+                    amount=tax_to_pay,
+                    description=f"🏛️ {player.name} cayó en {tile_def.name} y pagó ${tax_to_pay} de impuestos a la Banca",
+                    source_player_id=player.id,
+                    target_player_id=None,
+                    tile_id=tile_def.tile_id,
+                )
+            )
+            last_tx_id = tax_tx.id
+
+            action_required = "TAX_PAID_AUTOMATICALLY"
+            action_details = {
+                "tax_amount": tax_to_pay,
+                "tile_name": tile_def.name,
+            }
+
+        # CASO D: Casilla Neutral (Salida, Visitas, Parking)
+        else:
+            action_required = "NEUTRAL"
+            action_details = {"tile_name": tile_def.name}
+
+        # Registrar movimiento en historial si no hubo otra transacción
+        if not last_tx_id:
             move_tx = self._tx_repo.record(
                 Transaction(
                     id=None,
@@ -268,18 +361,20 @@ class RollDiceUseCase:
                     turn_number=game.current_turn,
                     transaction_type=TransactionType.BANK_TRANSFER,
                     amount=0,
-                    description=f"{player.name} avanzó {total_roll} casillas hasta {tile_def.name} (casilla {new_position})",
+                    description=f"🎲 {player.name} tiró {dice_1}+{dice_2} ({total_roll}) y se movió a {tile_def.name} (casilla {new_position})",
                     source_player_id=None,
                     target_player_id=player.id,
                     tile_id=tile_def.tile_id,
                 )
             )
-            tx_id = move_tx.id
+            last_tx_id = move_tx.id
 
-        # 11. Avance automático de turno si fue solicitado
-        if dto.auto_advance_turn and all_players:
+        # Avance opcional de turno si se solicitó explícitamente y no hay turno extra
+        if dto.auto_advance_turn and not extra_turn and all_players:
             game.advance_turn(len(all_players))
-            self._game_repo.save(game)
+
+        # Guardar estado de la partida
+        self._game_repo.save(game)
 
         return RollDiceOutputDTO(
             game_id=game.id,
@@ -300,11 +395,13 @@ class RollDiceUseCase:
             player_money=player.money,
             player_status="ACTIVE",
             in_jail=False,
+            extra_turn=extra_turn,
+            has_rolled_dice=game.has_rolled_dice,
+            consecutive_doubles=game.consecutive_doubles,
             current_turn=game.current_turn,
             current_player_index=game.current_player_index,
-            transaction_id=tx_id,
+            transaction_id=last_tx_id,
         )
 
 
-# Alias explícito de compatibilidad con Clean Architecture
 MovePlayerByDiceUseCase = RollDiceUseCase

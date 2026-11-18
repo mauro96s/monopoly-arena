@@ -110,11 +110,13 @@ def get_jail_action_use_case(
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
     transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
+    property_repo: PropertyRepositoryProtocol = Depends(get_property_repository),
 ) -> JailActionUseCase:
     return JailActionUseCase(
         game_repo=game_repo,
         player_repo=player_repo,
         transaction_repo=transaction_repo,
+        property_repo=property_repo,
     )
 
 

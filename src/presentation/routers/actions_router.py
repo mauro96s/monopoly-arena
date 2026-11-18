@@ -162,6 +162,9 @@ def roll_dice(
             player_status=res.player_status,
             player_state=res.player_status,
             in_jail=res.in_jail,
+            extra_turn=res.extra_turn,
+            has_rolled_dice=res.has_rolled_dice,
+            consecutive_doubles=res.consecutive_doubles,
             current_turn=res.current_turn,
             current_player_index=res.current_player_index,
             transaction_id=res.transaction_id,
@@ -329,11 +332,24 @@ def jail_action(
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+    players = player_repo.list_by_game(game_id)
+    if not players:
+        raise HTTPException(status_code=400, detail="No hay jugadores en la partida.")
+
+    active_player = players[game.current_player_index % len(players)]
+    target_player_id = payload.player_id if payload.player_id is not None else active_player.id
+
+    assert_active_turn(game_id, target_player_id, game_repo, player_repo)
     dto = JailActionInputDTO(
         game_id=game_id,
-        player_id=payload.player_id,
+        player_id=target_player_id,
         action=payload.action,
+        dice_1=payload.dice_1,
+        dice_2=payload.dice_2,
         auto_advance_turn=payload.auto_advance_turn,
     )
     try:
@@ -348,6 +364,12 @@ def jail_action(
             amount_paid=result.amount_paid,
             remaining_balance=result.remaining_balance,
             transaction_id=result.transaction_id,
+            dice_1=result.dice_1,
+            dice_2=result.dice_2,
+            is_doubles=result.is_doubles,
+            new_position=result.new_position,
+            action_required=result.action_required,
+            action_details=result.action_details,
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
         )

@@ -31,6 +31,8 @@ class GameResponse(BaseModel):
     status: str
     current_turn: int
     current_player_index: int
+    has_rolled_dice: bool = False
+    consecutive_doubles: int = 0
 
 
 class PlayerResponse(BaseModel):
@@ -42,6 +44,8 @@ class PlayerResponse(BaseModel):
     position: int
     is_bankrupt: bool
     in_jail: bool
+    jail_turns: int = 0
+    out_of_jail_cards: int = 0
 
 
 class PropertyStateResponse(BaseModel):
@@ -103,6 +107,8 @@ def list_games(
             status=g.status.value,
             current_turn=g.current_turn,
             current_player_index=g.current_player_index,
+            has_rolled_dice=g.has_rolled_dice,
+            consecutive_doubles=g.consecutive_doubles,
         )
         for g in games
     ]
@@ -127,6 +133,8 @@ def create_game(
         status=saved.status.value,
         current_turn=saved.current_turn,
         current_player_index=saved.current_player_index,
+        has_rolled_dice=saved.has_rolled_dice,
+        consecutive_doubles=saved.consecutive_doubles,
     )
 
 
@@ -145,6 +153,8 @@ def get_game(
         status=game.status.value,
         current_turn=game.current_turn,
         current_player_index=game.current_player_index,
+        has_rolled_dice=game.has_rolled_dice,
+        consecutive_doubles=game.consecutive_doubles,
     )
 
 
@@ -200,6 +210,8 @@ def advance_turn(
         status=saved.status.value,
         current_turn=saved.current_turn,
         current_player_index=saved.current_player_index,
+        has_rolled_dice=saved.has_rolled_dice,
+        consecutive_doubles=saved.consecutive_doubles,
     )
 
 
@@ -343,6 +355,8 @@ def add_player(
         position=saved.position,
         is_bankrupt=saved.is_bankrupt,
         in_jail=saved.in_jail,
+        jail_turns=saved.jail_turns,
+        out_of_jail_cards=saved.out_of_jail_cards,
     )
 
 
@@ -362,6 +376,8 @@ def list_players(
             position=p.position,
             is_bankrupt=p.is_bankrupt,
             in_jail=p.in_jail,
+            jail_turns=p.jail_turns,
+            out_of_jail_cards=p.out_of_jail_cards,
         )
         for p in players
     ]

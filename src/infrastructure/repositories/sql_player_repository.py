@@ -20,6 +20,7 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
             is_bankrupt=model.is_bankrupt,
             in_jail=model.in_jail,
             jail_turns=model.jail_turns,
+            out_of_jail_cards=int(getattr(model, "out_of_jail_cards", 0)),
         )
 
     def get_by_id(self, player_id: int) -> Optional[Player]:
@@ -41,6 +42,7 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
                 is_bankrupt=player.is_bankrupt,
                 in_jail=player.in_jail,
                 jail_turns=player.jail_turns,
+                out_of_jail_cards=player.out_of_jail_cards,
             )
             self._session.add(model)
             self._session.commit()
@@ -57,5 +59,6 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
                 model.is_bankrupt = player.is_bankrupt
                 model.in_jail = player.in_jail
                 model.jail_turns = player.jail_turns
+                model.out_of_jail_cards = player.out_of_jail_cards
                 self._session.commit()
             return player

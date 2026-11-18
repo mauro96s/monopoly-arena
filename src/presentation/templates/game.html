@@ -168,8 +168,14 @@
             Ubicación: <strong id="active-player-location-text" class="text-slate-900 dark:text-white font-heading font-bold">SALIDA (#0)</strong>
           </div>
 
-          <!-- Control de Tirada de Dados -->
-          <div class="flex flex-col items-center justify-center gap-2 pt-1">
+          <!-- Alerta de Turno Extra por Dobles -->
+          <div id="doubles-extra-badge" class="hidden inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 px-3 py-1 rounded-full border border-emerald-300 dark:border-emerald-700 animate-pulse mx-auto">
+            <span>✨</span>
+            <span id="doubles-extra-text">¡Sacaste dobles! Tiro extra disponible</span>
+          </div>
+
+          <!-- Control de Tirada de Dados Normal -->
+          <div id="normal-dice-controls" class="flex flex-col items-center justify-center gap-2 pt-1">
             <div class="flex items-center gap-3">
               <div id="dice-box-1" class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center text-xl sm:text-2xl font-mono font-extrabold shadow-sm transition-transform">
                 🎲
@@ -191,11 +197,11 @@
               class="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2"
             >
               <i data-lucide="dices" class="w-4 h-4"></i>
-              <span>Tirar Dados y Avanzar</span>
+              <span id="btn-roll-dice-text">Tirar Dados y Avanzar</span>
             </button>
 
             <!-- Acceso Rápido para Dados Físicos en Mesa -->
-            <div class="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
+            <div id="manual-dice-container" class="flex items-center gap-1.5 text-[11px] text-slate-500 pt-0.5">
               <span>¿Dados reales?</span>
               <input
                 id="manual-dice-sum"
@@ -206,6 +212,7 @@
                 class="w-14 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono text-center text-xs focus:ring-1 focus:ring-emerald-500"
               />
               <button
+                id="btn-manual-roll"
                 type="button"
                 onclick="handleManualRollClick()"
                 class="px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-[11px] font-bold text-slate-700 dark:text-slate-200"
@@ -214,6 +221,9 @@
               </button>
             </div>
           </div>
+
+          <!-- Panel de Control de Cárcel en HUD -->
+          <div id="jail-hud-controls" class="hidden max-w-sm mx-auto pt-1 animate-fade-in"></div>
 
           <!-- Tarjeta de Acción Contextual por Casilla (1 Solo Toque) -->
           <div id="contextual-action-box" class="hidden p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 max-w-md mx-auto text-center space-y-2 animate-fade-in">
@@ -839,6 +849,113 @@
     const locText = currentTile ? `${currentTile.name} (Casilla #${activePlayer.position})` : `Casilla #${activePlayer.position}`;
     document.getElementById('active-player-location-text').textContent = locText;
 
+    // Control de Estado del Jugador: ¿Está en Prisión?
+    const normalDiceControls = document.getElementById('normal-dice-controls');
+    const jailHudControls = document.getElementById('jail-hud-controls');
+    const doublesExtraBadge = document.getElementById('doubles-extra-badge');
+    const btnRollDice = document.getElementById('btn-roll-dice');
+    const btnRollDiceText = document.getElementById('btn-roll-dice-text');
+    const manualInput = document.getElementById('manual-dice-sum');
+    const btnManualRoll = document.getElementById('btn-manual-roll');
+
+    if (activePlayer.in_jail) {
+      normalDiceControls.classList.add('hidden');
+      doublesExtraBadge.classList.add('hidden');
+      jailHudControls.classList.remove('hidden');
+
+      const isForcedFine = activePlayer.jail_turns >= 2;
+      jailHudControls.innerHTML = `
+        <div class="p-3.5 rounded-2xl ${isForcedFine ? 'bg-red-50 dark:bg-red-950/70 border border-red-300 dark:border-red-800' : 'bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800'} text-center space-y-2">
+          <div class="flex items-center justify-center gap-1.5 font-bold text-xs ${isForcedFine ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'}">
+            <span>⛓️</span>
+            <span>${activePlayer.name} está en Prisión (${isForcedFine ? '3er Turno Obligatorio' : `Turno ${activePlayer.jail_turns + 1} de 3`})</span>
+          </div>
+
+          ${isForcedFine ? `
+            <p class="text-[11px] text-red-600 dark:text-red-400 font-semibold leading-tight">
+              ¡Límite alcanzado! Por reglas oficiales debes pagar la fianza de $50 o usar tarjeta para liberarte y poder moverte.
+            </p>
+            <div class="flex items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onclick="executeJailAction('PAY_FINE')"
+                class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-sm flex items-center gap-1.5"
+              >
+                <span>⚖️ Pagar Fianza $50</span>
+              </button>
+              <button
+                type="button"
+                onclick="executeJailAction('USE_CARD')"
+                class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs"
+              >
+                <span>🎫 Usar Tarjeta</span>
+              </button>
+            </div>
+          ` : `
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              Intenta sacar dobles para salir libre y avanzar, o paga la fianza para moverte de inmediato.
+            </p>
+            <div class="flex flex-col gap-1.5 pt-1">
+              <button
+                type="button"
+                onclick="executeJailTryDoubles()"
+                class="py-2 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2"
+              >
+                <i data-lucide="dices" class="w-4 h-4"></i>
+                <span>🎲 Intentar Sacar Dobles</span>
+              </button>
+              <div class="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onclick="executeJailAction('PAY_FINE')"
+                  class="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-[11px]"
+                >
+                  ⚖️ Pagar $50 y Moverse
+                </button>
+                <button
+                  type="button"
+                  onclick="executeJailAction('USE_CARD')"
+                  class="py-1.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold text-[11px]"
+                >
+                  🎫 Usar Tarjeta
+                </button>
+              </div>
+            </div>
+          `}
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+    } else {
+      // Jugador Libre: Controles Normales de Dados
+      normalDiceControls.classList.remove('hidden');
+      jailHudControls.classList.add('hidden');
+
+      // Control de Tirada Única
+      if (gameState.has_rolled_dice) {
+        btnRollDice.disabled = true;
+        btnRollDice.className = 'py-2.5 px-6 rounded-xl bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-heading font-bold text-xs sm:text-sm uppercase tracking-wider cursor-not-allowed transition-all flex items-center gap-2 opacity-60';
+        btnRollDiceText.textContent = 'Dados ya lanzados en este turno';
+        manualInput.disabled = true;
+        btnManualRoll.disabled = true;
+        btnManualRoll.className = 'px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-400 cursor-not-allowed';
+        doublesExtraBadge.classList.add('hidden');
+      } else {
+        btnRollDice.disabled = false;
+        btnRollDice.className = 'py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2';
+        btnRollDiceText.textContent = 'Tirar Dados y Avanzar';
+        manualInput.disabled = false;
+        btnManualRoll.disabled = false;
+        btnManualRoll.className = 'px-2 py-0.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 active:scale-95 text-[11px] font-bold text-slate-700 dark:text-slate-200';
+
+        if (gameState.consecutive_doubles > 0) {
+          doublesExtraBadge.classList.remove('hidden');
+          document.getElementById('doubles-extra-text').textContent = `¡Pares (${gameState.consecutive_doubles}/3)! Tiro extra disponible`;
+        } else {
+          doublesExtraBadge.classList.add('hidden');
+        }
+      }
+    }
+
     // Muelle de jugadores en el pie del HUD
     const dockContainer = document.getElementById('hud-players-dock');
     dockContainer.innerHTML = playersData.map((p, idx) => {
@@ -890,6 +1007,16 @@
       return;
     }
 
+    if (activePlayer.in_jail) {
+      showToast('Estás en prisión: debes resolver tu salida en el panel de Cárcel.', 'error');
+      return;
+    }
+
+    if (gameState.has_rolled_dice) {
+      showToast('Ya has tirado los dados en este turno. Resuelve la casilla o pasa el turno.', 'error');
+      return;
+    }
+
     // Efecto visual de giro en los dados
     isRolling = true;
     const dice1El = document.getElementById('dice-box-1');
@@ -924,7 +1051,11 @@
       }, 350);
 
       if (rollData.passed_go) {
-        showToast(`🎉 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
+        showToast(`🚩 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
+      }
+
+      if (rollData.is_doubles && rollData.extra_turn) {
+        showToast(`✨ ¡Dobles (${rollData.dice_1}+${rollData.dice_2})! Tienes un turno extra.`);
       }
 
       // Actualizar datos del juego
@@ -947,6 +1078,94 @@
   }
 
   // ========================================================
+  // ACCIONES DE CÁRCEL EN VIVO
+  // ========================================================
+  async function executeJailTryDoubles() {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/jail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: activePlayer.id,
+          action: 'TRY_DOUBLES'
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error intentando dobles');
+      }
+
+      const data = await res.json();
+
+      const dice1El = document.getElementById('dice-box-1');
+      const dice2El = document.getElementById('dice-box-2');
+      if (dice1El && dice2El && data.dice_1 && data.dice_2) {
+        dice1El.textContent = getDiceFace(data.dice_1);
+        dice2El.textContent = getDiceFace(data.dice_2);
+        document.getElementById('dice-sum-badge').textContent = `= ${data.dice_1 + data.dice_2}`;
+      }
+
+      if (data.is_doubles) {
+        showToast(`🎉 ¡${activePlayer.name} sacó dobles (${data.dice_1}+${data.dice_2}) y quedó libre avanzando a casilla #${data.new_position}!`);
+      } else {
+        showToast(`🔒 No hubo dobles (${data.dice_1}+${data.dice_2}). Turno #${data.jail_turns} cumplido. Turno terminado.`);
+      }
+
+      await refreshGameData();
+
+      if (data.action_required) {
+        displayContextualAction({
+          action_required: data.action_required,
+          action_details: data.action_details || {},
+          landed_tile_name: data.action_details?.tile_name || `Casilla #${data.new_position}`,
+          landed_tile_id: data.action_details?.tile_id || '',
+          extra_turn: false,
+        });
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function executeJailAction(action) {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/jail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: activePlayer.id,
+          action: action,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error en acción de cárcel');
+      }
+
+      if (action === 'PAY_FINE') {
+        showToast(`⚖️ ¡${activePlayer.name} pagó fianza de $50 y quedó libre! Ya puedes tirar los dados.`);
+      } else if (action === 'USE_CARD') {
+        showToast(`🎫 ¡${activePlayer.name} usó tarjeta y quedó libre! Ya puedes tirar los dados.`);
+      } else if (action === 'GO_TO_JAIL') {
+        showToast(`🚨 ¡${activePlayer.name} fue enviado a prisión!`);
+      }
+
+      closeActionModal();
+      await refreshGameData();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // ========================================================
   // ACCIONES CONTEXTUALES INMEDIATAS POR CASILLA (1 SOLO TOQUE)
   // ========================================================
   function displayContextualAction(rollData) {
@@ -956,7 +1175,7 @@
 
     actionBox.classList.remove('hidden');
 
-    if (rollData.action_required === 'CAN_BUY') {
+    if (rollData.action_required === 'BUY_PROPERTY') {
       const canAfford = rollData.action_details.can_afford;
       actionBox.innerHTML = `
         <div class="text-xs">
@@ -966,7 +1185,7 @@
         <div class="flex items-center justify-center gap-2 pt-1">
           <button
             type="button"
-            onclick="executeContextualBuy('${rollData.landed_tile_id}', '${rollData.landed_tile_name}', ${rollData.action_details.price})"
+            onclick="executeContextualBuy('${rollData.action_details.tile_id || rollData.landed_tile_id}', '${rollData.landed_tile_name}', ${rollData.action_details.price})"
             ${!canAfford ? 'disabled' : ''}
             class="py-1.5 px-4 rounded-xl text-xs font-heading font-bold uppercase tracking-wider text-white ${
               canAfford ? 'bg-emerald-600 hover:bg-emerald-700 shadow-sm active:scale-95' : 'bg-slate-300 cursor-not-allowed'
@@ -983,59 +1202,77 @@
           </button>
         </div>
       `;
-    } else if (rollData.action_required === 'MUST_PAY_RENT') {
+    } else if (rollData.action_required === 'RENT_PAID_AUTOMATICALLY') {
       actionBox.innerHTML = `
         <div class="text-xs">
-          <span>Caíste en propiedad de <strong class="text-slate-900 dark:text-white">${rollData.action_details.owner_name}</strong> (${rollData.landed_tile_name})</span>
-          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">Renta oficial calculada: $${rollData.action_details.rent_amount}</span>
+          <span>Caíste en propiedad de <strong class="text-slate-900 dark:text-white">${rollData.action_details.owner_name}</strong></span>
+          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">💸 Renta pagada automáticamente: $${rollData.action_details.rent_amount}</span>
         </div>
-        <div class="pt-1">
-          <button
-            type="button"
-            onclick="executeContextualPayRent('${rollData.landed_tile_id}', '${rollData.landed_tile_name}', ${rollData.action_details.rent_amount}, '${rollData.action_details.owner_name}')"
-            class="py-1.5 px-5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
-          >
-            💸 Pagar Renta $${rollData.action_details.rent_amount}
-          </button>
-        </div>
+        ${rollData.extra_turn ? `
+          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
+          </div>
+        ` : `
+          <div class="pt-1">
+            <button
+              type="button"
+              onclick="advanceTurn()"
+              class="py-1.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-bold text-xs uppercase tracking-wider active:scale-95 shadow-sm"
+            >
+              Pasar Turno →
+            </button>
+          </div>
+        `}
       `;
-    } else if (rollData.action_required === 'PAY_TAX') {
+    } else if (rollData.action_required === 'TAX_PAID_AUTOMATICALLY') {
       actionBox.innerHTML = `
         <div class="text-xs">
           <span>Caíste en <strong class="text-slate-900 dark:text-white">${rollData.landed_tile_name}</strong></span>
-          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">Impuesto a la Banca: $${rollData.action_details.tax_amount}</span>
+          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">🏛️ Impuesto descontado automáticamente: $${rollData.action_details.tax_amount}</span>
         </div>
-        <div class="pt-1">
-          <button
-            type="button"
-            onclick="executeContextualPayTax(${rollData.action_details.tax_amount}, '${rollData.landed_tile_name}')"
-            class="py-1.5 px-5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
-          >
-            Pagar Impuesto de $${rollData.action_details.tax_amount}
-          </button>
-        </div>
+        ${rollData.extra_turn ? `
+          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
+          </div>
+        ` : `
+          <div class="pt-1">
+            <button
+              type="button"
+              onclick="advanceTurn()"
+              class="py-1.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-bold text-xs uppercase tracking-wider active:scale-95 shadow-sm"
+            >
+              Pasar Turno →
+            </button>
+          </div>
+        `}
       `;
     } else if (rollData.action_required === 'WENT_TO_JAIL') {
       actionBox.innerHTML = `
         <div class="text-xs text-red-600 dark:text-red-400 font-bold">
-          🚨 ¡Caíste en la casilla de policía y fuiste enviado a la Cárcel!
+          🚨 ¡Enviado a la Cárcel!
         </div>
-        <p class="text-[11px] text-slate-500">Tu turno ha finalizado en prisión.</p>
+        <p class="text-[11px] text-slate-500">Tu turno ha finalizado en prisión. Turno pasado al siguiente jugador.</p>
       `;
     } else {
       actionBox.innerHTML = `
         <div class="text-xs text-slate-600 dark:text-slate-300">
           Caíste en <strong class="text-slate-900 dark:text-white">${rollData.landed_tile_name}</strong> (Casilla Neutral).
         </div>
-        <div class="pt-1">
-          <button
-            type="button"
-            onclick="advanceTurn()"
-            class="py-1 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-xs font-bold text-slate-800 dark:text-slate-200"
-          >
-            Pasar Turno →
-          </button>
-        </div>
+        ${rollData.extra_turn ? `
+          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
+          </div>
+        ` : `
+          <div class="pt-1">
+            <button
+              type="button"
+              onclick="advanceTurn()"
+              class="py-1 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              Pasar Turno →
+            </button>
+          </div>
+        `}
       `;
     }
   }
@@ -1944,7 +2181,7 @@
     if (!activePlayer) return;
 
     if (activePlayer.in_jail) {
-      const mustPay = activePlayer.jail_turns >= 3;
+      const isForcedFine = activePlayer.jail_turns >= 2;
       statusBox.innerHTML = `
         <div class="flex items-center gap-3">
           <span class="text-3xl">⛓️</span>
@@ -1953,46 +2190,63 @@
               ${activePlayer.name} está en Prisión
             </h4>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Ronda <strong class="text-slate-800 dark:text-slate-200">${activePlayer.jail_turns}</strong> de 3 permitidas.
-              ${mustPay ? '<span class="block text-red-600 font-bold mt-0.5">¡3 turnos cumplidos! Debes pagar los $50 de fianza para continuar.</span>' : ''}
+              Ronda <strong class="text-slate-800 dark:text-slate-200">${activePlayer.jail_turns + 1}</strong> de 3 permitidas.
+              ${isForcedFine ? '<span class="block text-red-600 font-bold mt-0.5">¡3er Turno obligatorio! Debes pagar los $50 de fianza o usar tarjeta para liberarte.</span>' : ''}
             </p>
           </div>
         </div>
       `;
 
-      actionsBox.innerHTML = `
-        <button
-          type="button"
-          onclick="executeJailAction('PAY_FINE')"
-          class="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
-        >
-          <span>Pagar Fianza de Salida</span>
-          <span class="font-mono font-bold">$50</span>
-        </button>
-
-        <button
-          type="button"
-          onclick="executeJailAction('USE_CARD')"
-          class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
-        >
-          <span>Usar Carta "Salga Libre de la Cárcel"</span>
-          <span>Gratis</span>
-        </button>
-
-        ${!mustPay ? `
+      if (isForcedFine) {
+        actionsBox.innerHTML = `
           <button
             type="button"
-            onclick="executeJailAction('STAY')"
-            class="w-full p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-all text-center active:scale-95"
+            onclick="executeJailAction('PAY_FINE')"
+            class="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
           >
-            Cumplir Turno en Prisión
+            <span>Pagar Fianza Obligatoria</span>
+            <span class="font-mono font-bold">$50</span>
           </button>
-        ` : `
-          <div class="p-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-center text-xs text-red-600 dark:text-red-400 font-bold">
-            Límite de 3 turnos alcanzado (Fianza Obligatoria)
-          </div>
-        `}
-      `;
+
+          <button
+            type="button"
+            onclick="executeJailAction('USE_CARD')"
+            class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
+          >
+            <span>Usar Tarjeta "Salga Libre de la Cárcel"</span>
+            <span>Gratis</span>
+          </button>
+        `;
+      } else {
+        actionsBox.innerHTML = `
+          <button
+            type="button"
+            onclick="executeJailTryDoubles(); closeActionModal();"
+            class="w-full p-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95"
+          >
+            <i data-lucide="dices" class="w-4 h-4"></i>
+            <span>🎲 Intentar Sacar Dobles (Tirar Dados)</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="executeJailAction('PAY_FINE')"
+            class="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
+          >
+            <span>Pagar Fianza de Salida</span>
+            <span class="font-mono font-bold">$50</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="executeJailAction('USE_CARD')"
+            class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
+          >
+            <span>Usar Tarjeta "Salga Libre de la Cárcel"</span>
+            <span>Gratis</span>
+          </button>
+        `;
+      }
     } else {
       statusBox.innerHTML = `
         <div class="flex items-center gap-3">
@@ -2017,34 +2271,6 @@
           <span>🚨 ¡Enviar a la Cárcel! (Casilla 30 o 3 Dobles)</span>
         </button>
       `;
-    }
-  }
-
-  async function executeJailAction(action) {
-    const activePlayer = getActivePlayer();
-    if (!activePlayer) return;
-
-    try {
-      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/jail`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player_id: activePlayer.id,
-          action: action,
-          auto_advance_turn: true,
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || 'Error en acción de cárcel');
-      }
-
-      showToast(`Estado de cárcel actualizado. Turno avanzado.`);
-      closeActionModal();
-      await refreshGameData();
-    } catch (e) {
-      showToast(e.message, 'error');
     }
   }
 

@@ -18,6 +18,8 @@ class SqlGameRepository(GameRepositoryProtocol):
             current_turn=model.current_turn,
             current_player_index=model.current_player_index,
             created_at=model.created_at,
+            has_rolled_dice=bool(getattr(model, "has_rolled_dice", False)),
+            consecutive_doubles=int(getattr(model, "consecutive_doubles", 0)),
         )
 
     def get_by_id(self, game_id: int) -> Optional[Game]:
@@ -41,6 +43,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 current_turn=game.current_turn,
                 current_player_index=game.current_player_index,
                 created_at=game.created_at,
+                has_rolled_dice=game.has_rolled_dice,
+                consecutive_doubles=game.consecutive_doubles,
             )
             self._session.add(model)
             self._session.commit()
@@ -54,6 +58,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.status = game.status
                 model.current_turn = game.current_turn
                 model.current_player_index = game.current_player_index
+                model.has_rolled_dice = game.has_rolled_dice
+                model.consecutive_doubles = game.consecutive_doubles
                 self._session.commit()
             return game
 

@@ -86,9 +86,11 @@ class MortgageResponse(BaseModel):
 
 
 class JailActionRequest(BaseModel):
-    player_id: int
-    action: str = Field(..., description="'PAY_FINE', 'USE_CARD', 'GO_TO_JAIL', 'STAY'")
-    auto_advance_turn: bool = True
+    player_id: Optional[int] = Field(None, description="ID del jugador (opcional: asume el jugador activo)")
+    action: str = Field(..., description="'PAY_FINE', 'USE_CARD', 'TRY_DOUBLES', 'GO_TO_JAIL'")
+    dice_1: Optional[int] = Field(None, ge=1, le=6)
+    dice_2: Optional[int] = Field(None, ge=1, le=6)
+    auto_advance_turn: bool = False
 
 
 class JailActionResponse(BaseModel):
@@ -101,6 +103,12 @@ class JailActionResponse(BaseModel):
     amount_paid: int
     remaining_balance: int
     transaction_id: int
+    dice_1: Optional[int] = None
+    dice_2: Optional[int] = None
+    is_doubles: Optional[bool] = None
+    new_position: Optional[int] = None
+    action_required: Optional[str] = None
+    action_details: Optional[dict] = None
     current_turn: int
     current_player_index: int
 
@@ -214,6 +222,9 @@ class RollDiceResponse(BaseModel):
     player_status: Optional[str] = "ACTIVE"
     player_state: Optional[str] = "ACTIVE"
     in_jail: bool = False
+    extra_turn: bool = False
+    has_rolled_dice: bool = True
+    consecutive_doubles: int = 0
     current_turn: int = 1
     current_player_index: int = 0
     transaction_id: Optional[int] = None
