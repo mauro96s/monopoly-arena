@@ -76,19 +76,14 @@ class RollDiceUseCase:
         # 5. Calcular o simular dados
         effective_sum = dto.dice_sum if dto.dice_sum is not None else dto.total_roll
 
-        if effective_sum and effective_sum > 0:
-            total_roll = effective_sum
-            # Si el usuario mandó suma fija, intentamos inferir si son dados específicos o dividimos
-            if dto.dice_1 and dto.dice_2 and (dto.dice_1 + dto.dice_2 == total_roll):
-                dice_1 = dto.dice_1
-                dice_2 = dto.dice_2
-            else:
-                dice_1 = total_roll // 2
-                dice_2 = total_roll - dice_1
-        elif dto.dice_1 and dto.dice_2:
-            dice_1 = dto.dice_1
-            dice_2 = dto.dice_2
+        if dto.dice_1 is not None and dto.dice_2 is not None:
+            dice_1 = int(dto.dice_1)
+            dice_2 = int(dto.dice_2)
             total_roll = dice_1 + dice_2
+        elif effective_sum and effective_sum > 0:
+            total_roll = int(effective_sum)
+            dice_1 = total_roll // 2
+            dice_2 = total_roll - dice_1
         else:
             dice_1 = random.randint(1, 6)
             dice_2 = random.randint(1, 6)
