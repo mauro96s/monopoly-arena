@@ -30,6 +30,10 @@ def create_app() -> FastAPI:
     app.include_router(games_router.router, prefix=settings.API_V1_STR)
     app.include_router(actions_router.router, prefix=settings.API_V1_STR)
 
+    # Rutas de acción y partidas directas (fallback para compatibilidad sin prefijo /api/v1)
+    app.include_router(games_router.router)
+    app.include_router(actions_router.router)
+
     @app.get("/health")
     def health():
         return {"status": "ok"}

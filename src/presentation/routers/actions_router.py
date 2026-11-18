@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from src.presentation.schemas.action_schemas import (
     BuyPropertyRequest,
@@ -39,6 +40,7 @@ from src.application.use_cases import (
     TransferMoneyUseCase,
     FinishGameUseCase,
     RollDiceUseCase,
+    MovePlayerByDiceUseCase,
 )
 from src.presentation.dependencies import (
     get_game_repository,
@@ -52,6 +54,7 @@ from src.presentation.dependencies import (
     get_transfer_money_use_case,
     get_finish_game_use_case,
     get_roll_dice_use_case,
+    get_move_player_by_dice_use_case,
 )
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
@@ -90,20 +93,47 @@ def assert_active_turn(game_id: int, player_id: int, game_repo: GameRepositoryPr
 
 
 @router.post("/roll-dice", response_model=RollDiceResponse, status_code=status.HTTP_200_OK)
+@router.post("/roll-dice/", response_model=RollDiceResponse, status_code=status.HTTP_200_OK, include_in_schema=False)
+@router.post("/move-player", response_model=RollDiceResponse, status_code=status.HTTP_200_OK, include_in_schema=False)
+@router.post("/move-player/", response_model=RollDiceResponse, status_code=status.HTTP_200_OK, include_in_schema=False)
 def roll_dice(
     game_id: int,
-    payload: RollDiceRequest,
+    payload: Optional[RollDiceRequest] = None,
     use_case: RollDiceUseCase = Depends(get_roll_dice_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    if payload is None:
+        payload = RollDiceRequest()
+
+    # Resolver jugador activo si no se especifica player_id
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    if game.status == GameStatus.FINISHED:
+        raise HTTPException(status_code=400, detail="La partida ya ha finalizado.")
+
+    players = player_repo.list_by_game(game_id)
+    if not players:
+        raise HTTPException(status_code=400, detail="No hay jugadores en la partida.")
+
+    active_player = players[game.current_player_index % len(players)]
+    target_player_id = payload.player_id if payload.player_id is not None else active_player.id
+
+    assert_active_turn(game_id, target_player_id, game_repo, player_repo)
+
+    total_roll = payload.dice_sum if payload.dice_sum is not None else payload.total_roll
+    d1 = payload.dice1 if payload.dice1 is not None else payload.dice_1
+    d2 = payload.dice2 if payload.dice2 is not None else payload.dice_2
+
     dto = RollDiceInputDTO(
         game_id=game_id,
-        player_id=payload.player_id,
-        dice_1=payload.dice_1,
-        dice_2=payload.dice_2,
-        total_roll=payload.total_roll,
+        player_id=target_player_id,
+        dice_1=d1,
+        dice_2=d2,
+        total_roll=total_roll,
+        dice_sum=total_roll,
+        auto_advance_turn=bool(payload.auto_advance_turn),
     )
     try:
         res = use_case.execute(dto)
@@ -115,8 +145,10 @@ def roll_dice(
             dice_1=res.dice_1,
             dice_2=res.dice_2,
             total_roll=res.total_roll,
+            dice_sum=res.total_roll,
             is_doubles=res.is_doubles,
             old_position=res.old_position,
+            current_position=res.new_position,
             new_position=res.new_position,
             passed_go=res.passed_go,
             landed_tile_id=res.landed_tile_id,
@@ -125,6 +157,13 @@ def roll_dice(
             action_required=res.action_required,
             action_details=res.action_details,
             player_money=res.player_money,
+            money=res.player_money,
+            updated_money=res.player_money,
+            player_status=res.player_status,
+            player_state=res.player_status,
+            in_jail=res.in_jail,
+            current_turn=res.current_turn,
+            current_player_index=res.current_player_index,
             transaction_id=res.transaction_id,
         )
     except (GameNotFoundError, PlayerNotFoundError) as e:

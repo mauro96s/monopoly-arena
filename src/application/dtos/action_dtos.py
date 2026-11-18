@@ -163,10 +163,12 @@ class TransferMoneyOutputDTO:
 @dataclass(frozen=True)
 class RollDiceInputDTO:
     game_id: int
-    player_id: int
+    player_id: Optional[int] = None
     dice_1: Optional[int] = None
     dice_2: Optional[int] = None
     total_roll: Optional[int] = None
+    dice_sum: Optional[int] = None
+    auto_advance_turn: bool = False
 
 
 @dataclass(frozen=True)
@@ -187,4 +189,8 @@ class RollDiceOutputDTO:
     action_required: str
     action_details: dict
     player_money: int
+    player_status: str = "ACTIVE"
+    in_jail: bool = False
+    current_turn: int = 1
+    current_player_index: int = 0
     transaction_id: Optional[int] = None

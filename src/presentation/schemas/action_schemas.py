@@ -179,10 +179,14 @@ class AddPlayerRequest(BaseModel):
 
 
 class RollDiceRequest(BaseModel):
-    player_id: int
-    dice_1: Optional[int] = Field(None, ge=1, le=6)
-    dice_2: Optional[int] = Field(None, ge=1, le=6)
-    total_roll: Optional[int] = Field(None, ge=2, le=12)
+    player_id: Optional[int] = Field(None, description="ID del jugador (opcional: asume el jugador con el turno activo)")
+    dice_sum: Optional[int] = Field(None, ge=2, le=12, description="Suma total de los dados (ej: 7)")
+    total_roll: Optional[int] = Field(None, ge=2, le=12, description="Alias para suma de dados")
+    dice_1: Optional[int] = Field(None, ge=1, le=6, description="Valor del dado 1")
+    dice_2: Optional[int] = Field(None, ge=1, le=6, description="Valor del dado 2")
+    dice1: Optional[int] = Field(None, ge=1, le=6, description="Alias dado 1")
+    dice2: Optional[int] = Field(None, ge=1, le=6, description="Alias dado 2")
+    auto_advance_turn: Optional[bool] = Field(False, description="Avanzar turno automáticamente tras mover")
 
 
 class RollDiceResponse(BaseModel):
@@ -193,8 +197,10 @@ class RollDiceResponse(BaseModel):
     dice_1: int
     dice_2: int
     total_roll: int
+    dice_sum: Optional[int] = None
     is_doubles: bool
     old_position: int
+    current_position: Optional[int] = None
     new_position: int
     passed_go: bool
     landed_tile_id: str
@@ -203,4 +209,11 @@ class RollDiceResponse(BaseModel):
     action_required: str
     action_details: dict
     player_money: int
+    money: Optional[int] = None
+    updated_money: Optional[int] = None
+    player_status: Optional[str] = "ACTIVE"
+    player_state: Optional[str] = "ACTIVE"
+    in_jail: bool = False
+    current_turn: int = 1
+    current_player_index: int = 0
     transaction_id: Optional[int] = None

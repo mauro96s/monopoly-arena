@@ -158,3 +158,6 @@ def get_roll_dice_use_case(
         property_repo=property_repo,
         transaction_repo=transaction_repo,
     )
+
+
+get_move_player_by_dice_use_case = get_roll_dice_use_case

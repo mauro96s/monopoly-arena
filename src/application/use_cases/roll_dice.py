@@ -18,9 +18,11 @@ from src.domain.exceptions import (
 class RollDiceUseCase:
     """
     Caso de Uso: Tirar Dados y Mover Jugador por el Tablero en Vivo.
-    - Soporta tiro aleatorio 2d6 o valor ingresado manualmente.
+    - Soporta tiro aleatorio 2d6 o valor ingresado manualmente (dice_sum / total_roll).
+    - Asume automáticamente el jugador en turno activo si no se envía player_id.
     - Actualiza posición: (position + roll) % 40.
     - Detecta paso por la SALIDA (casilla 0) y abona $200 automáticamente.
+    - Registra el movimiento en el Ledger y avanza el turno si se requiere.
     - Detecta casilla de destino (Propiedad libre, Renta a rival, Impuestos, Cárcel, Neutral).
     """
 
@@ -37,17 +39,28 @@ class RollDiceUseCase:
         self._tx_repo = transaction_repo
 
     def execute(self, dto: RollDiceInputDTO) -> RollDiceOutputDTO:
+        # 1. Validar partida
         game = self._game_repo.get_by_id(dto.game_id)
         if not game:
             raise GameNotFoundError(f"Partida {dto.game_id} no existe.")
 
-        player = self._player_repo.get_by_id(dto.player_id)
-        if not player or player.game_id != dto.game_id:
-            raise PlayerNotFoundError(f"Jugador {dto.player_id} no válido.")
+        all_players = self._player_repo.list_by_game(dto.game_id)
+        if not all_players:
+            raise InvalidGameActionError("La partida no tiene jugadores registrados.")
 
-        # Calcular o simular dados
-        if dto.total_roll and dto.total_roll > 0:
-            total_roll = dto.total_roll
+        # 2. Validar o resolver jugador activo
+        if dto.player_id is not None:
+            player = self._player_repo.get_by_id(dto.player_id)
+            if not player or player.game_id != dto.game_id:
+                raise PlayerNotFoundError(f"Jugador {dto.player_id} no válido.")
+        else:
+            player = all_players[game.current_player_index % len(all_players)]
+
+        # 3. Calcular o simular dados
+        effective_sum = dto.dice_sum if dto.dice_sum is not None else dto.total_roll
+
+        if effective_sum and effective_sum > 0:
+            total_roll = effective_sum
             dice_1 = total_roll // 2
             dice_2 = total_roll - dice_1
         elif dto.dice_1 and dto.dice_2:
@@ -62,7 +75,7 @@ class RollDiceUseCase:
         is_doubles = (dice_1 == dice_2)
         old_position = player.position
 
-        # Manejo de Cárcel
+        # 4. Manejo de Cárcel
         if player.in_jail:
             if is_doubles:
                 # Saca dobles: ¡Queda libre de inmediato y avanza los dados!
@@ -99,6 +112,10 @@ class RollDiceUseCase:
                         tile_id="JAIL",
                     )
                 )
+                if dto.auto_advance_turn and all_players:
+                    game.advance_turn(len(all_players))
+                    self._game_repo.save(game)
+
                 return RollDiceOutputDTO(
                     game_id=game.id,
                     player_id=player.id,
@@ -116,12 +133,16 @@ class RollDiceUseCase:
                     action_required="IN_JAIL",
                     action_details={"jail_turns": player.jail_turns, "must_pay_fine": player.jail_turns >= 3},
                     player_money=player.money,
+                    player_status="IN_JAIL",
+                    in_jail=True,
+                    current_turn=game.current_turn,
+                    current_player_index=game.current_player_index,
                     transaction_id=None,
                 )
         else:
             new_position = (old_position + total_roll) % 40
 
-        # Detectar paso por la SALIDA (casilla 0) y abonar $200
+        # 5. Detectar paso por la SALIDA (casilla 0) y abonar $200
         passed_go = (new_position < old_position)
         tx_id = None
         if passed_go:
@@ -141,7 +162,7 @@ class RollDiceUseCase:
             )
             tx_id = tx.id
 
-        # Localizar definición de casilla
+        # 6. Localizar definición de casilla
         board = BoardRuleRegistry.get_board(game.variant)
         tile_strategy = next((s for s in board.values() if s.definition.position == new_position), None)
         if not tile_strategy:
@@ -149,13 +170,13 @@ class RollDiceUseCase:
 
         tile_def = tile_strategy.definition
 
-        # Casilla Especial: ¡Vaya a la Cárcel! (Posición 30)
+        # 7. Casilla Especial: ¡Vaya a la Cárcel! (Posición 30)
         if new_position == 30:
             player.in_jail = True
             player.jail_turns = 1
             player.position = 10  # Trasladar a prisión
             self._player_repo.save(player)
-            self._tx_repo.record(
+            jail_tx = self._tx_repo.record(
                 Transaction(
                     id=None,
                     game_id=game.id,
@@ -168,6 +189,10 @@ class RollDiceUseCase:
                     tile_id="GO_TO_JAIL",
                 )
             )
+            if dto.auto_advance_turn and all_players:
+                game.advance_turn(len(all_players))
+                self._game_repo.save(game)
+
             return RollDiceOutputDTO(
                 game_id=game.id,
                 player_id=player.id,
@@ -185,19 +210,23 @@ class RollDiceUseCase:
                 action_required="WENT_TO_JAIL",
                 action_details={"jail_position": 10},
                 player_money=player.money,
-                transaction_id=tx_id,
+                player_status="IN_JAIL",
+                in_jail=True,
+                current_turn=game.current_turn,
+                current_player_index=game.current_player_index,
+                transaction_id=jail_tx.id if jail_tx else tx_id,
             )
 
-        # Actualizar posición definitiva del jugador
+        # 8. Actualizar posición definitiva del jugador
         player.position = new_position
         self._player_repo.save(player)
 
-        # Evaluar acciones contextuales por casilla
+        # 9. Evaluar acciones contextuales por casilla
         action_required = "NEUTRAL"
         action_details = {}
 
         if tile_strategy.can_be_purchased():
-            prop = self._property_repo.get_by_tile_id(game.id, tile_def.tile_id)
+            prop = self._property_repo.get_by_tile(game.id, tile_def.tile_id)
             if not prop or prop.owner_id is None:
                 action_required = "CAN_BUY"
                 action_details = {
@@ -230,6 +259,28 @@ class RollDiceUseCase:
             action_required = "PAY_TAX"
             action_details = {"tax_amount": tile_def.price or 100}
 
+        # 10. Registrar movimiento en historial si no hubo transacción previa de Salida
+        if not tx_id:
+            move_tx = self._tx_repo.record(
+                Transaction(
+                    id=None,
+                    game_id=game.id,
+                    turn_number=game.current_turn,
+                    transaction_type=TransactionType.BANK_TRANSFER,
+                    amount=0,
+                    description=f"{player.name} avanzó {total_roll} casillas hasta {tile_def.name} (casilla {new_position})",
+                    source_player_id=None,
+                    target_player_id=player.id,
+                    tile_id=tile_def.tile_id,
+                )
+            )
+            tx_id = move_tx.id
+
+        # 11. Avance automático de turno si fue solicitado
+        if dto.auto_advance_turn and all_players:
+            game.advance_turn(len(all_players))
+            self._game_repo.save(game)
+
         return RollDiceOutputDTO(
             game_id=game.id,
             player_id=player.id,
@@ -247,5 +298,13 @@ class RollDiceUseCase:
             action_required=action_required,
             action_details=action_details,
             player_money=player.money,
+            player_status="ACTIVE",
+            in_jail=False,
+            current_turn=game.current_turn,
+            current_player_index=game.current_player_index,
             transaction_id=tx_id,
         )
+
+
+# Alias explícito de compatibilidad con Clean Architecture
+MovePlayerByDiceUseCase = RollDiceUseCase

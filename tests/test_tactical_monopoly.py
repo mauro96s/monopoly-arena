@@ -245,6 +245,36 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.assertTrue(p1_updated.in_jail)
         self.assertEqual(p1_updated.position, 10)
 
+    def test_roll_dice_default_active_player_and_dice_sum(self):
+        # Usando MovePlayerByDiceUseCase sin especificar player_id (asume el del turno activo: Ana)
+        self.p1.position = 35
+        self.p1.money = 500
+        self.player_repo.save(self.p1)
+        self.game.current_player_index = 0
+        self.game_repo.save(self.game)
+
+        # Tirar con dice_sum=7 -> 35 + 7 = 42 -> 2 (pasa por salida: +$200) y auto_advance_turn=True
+        res = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id,
+            player_id=None,
+            dice_sum=7,
+            auto_advance_turn=True,
+        ))
+        self.assertEqual(res.player_id, self.p1.id)
+        self.assertEqual(res.old_position, 35)
+        self.assertEqual(res.new_position, 2)
+        self.assertTrue(res.passed_go)
+        self.assertEqual(res.player_money, 700)
+        self.assertEqual(res.total_roll, 7)
+
+        # Comprobar que avanzó el turno al jugador 2 (Beto)
+        g_updated = self.game_repo.get_by_id(self.game.id)
+        self.assertEqual(g_updated.current_player_index, 1)
+
+        # Comprobar que se registró la transacción en el ledger
+        txs = self.tx_repo.list_by_game(self.game.id)
+        self.assertTrue(any(tx.transaction_type.value == "PASS_GO" and tx.amount == 200 for tx in txs))
+
 
 if __name__ == "__main__":
     unittest.main()
