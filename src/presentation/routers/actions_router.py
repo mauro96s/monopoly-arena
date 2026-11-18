@@ -16,6 +16,8 @@ from src.presentation.schemas.action_schemas import (
     TransferMoneyResponse,
     FinishGameResponse,
     PlayerRankingSchema,
+    RollDiceRequest,
+    RollDiceResponse,
 )
 from src.application.dtos.action_dtos import (
     BuyPropertyInputDTO,
@@ -25,6 +27,7 @@ from src.application.dtos.action_dtos import (
     JailActionInputDTO,
     BankActionInputDTO,
     TransferMoneyInputDTO,
+    RollDiceInputDTO,
 )
 from src.application.use_cases import (
     BuyPropertyUseCase,
@@ -35,6 +38,7 @@ from src.application.use_cases import (
     BankActionUseCase,
     TransferMoneyUseCase,
     FinishGameUseCase,
+    RollDiceUseCase,
 )
 from src.presentation.dependencies import (
     get_game_repository,
@@ -47,6 +51,7 @@ from src.presentation.dependencies import (
     get_bank_action_use_case,
     get_transfer_money_use_case,
     get_finish_game_use_case,
+    get_roll_dice_use_case,
 )
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
@@ -82,6 +87,50 @@ def assert_active_turn(game_id: int, player_id: int, game_repo: GameRepositoryPr
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Acción bloqueada: No es el turno de {player_name}. Es el turno de {active_player.name}."
         )
+
+
+@router.post("/roll-dice", response_model=RollDiceResponse, status_code=status.HTTP_200_OK)
+def roll_dice(
+    game_id: int,
+    payload: RollDiceRequest,
+    use_case: RollDiceUseCase = Depends(get_roll_dice_use_case),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+):
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    dto = RollDiceInputDTO(
+        game_id=game_id,
+        player_id=payload.player_id,
+        dice_1=payload.dice_1,
+        dice_2=payload.dice_2,
+        total_roll=payload.total_roll,
+    )
+    try:
+        res = use_case.execute(dto)
+        return RollDiceResponse(
+            success=True,
+            game_id=res.game_id,
+            player_id=res.player_id,
+            player_name=res.player_name,
+            dice_1=res.dice_1,
+            dice_2=res.dice_2,
+            total_roll=res.total_roll,
+            is_doubles=res.is_doubles,
+            old_position=res.old_position,
+            new_position=res.new_position,
+            passed_go=res.passed_go,
+            landed_tile_id=res.landed_tile_id,
+            landed_tile_name=res.landed_tile_name,
+            landed_tile_type=res.landed_tile_type,
+            action_required=res.action_required,
+            action_details=res.action_details,
+            player_money=res.player_money,
+            transaction_id=res.transaction_id,
+        )
+    except (GameNotFoundError, PlayerNotFoundError) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (InsufficientFundsError, InvalidGameActionError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/buy-property", response_model=BuyPropertyResponse, status_code=status.HTTP_200_OK)

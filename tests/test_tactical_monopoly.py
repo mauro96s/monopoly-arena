@@ -17,6 +17,7 @@ from src.application.use_cases import (
     JailActionUseCase,
     BankActionUseCase,
     FinishGameUseCase,
+    RollDiceUseCase,
 )
 from src.application.dtos.action_dtos import (
     BuyPropertyInputDTO,
@@ -24,6 +25,7 @@ from src.application.dtos.action_dtos import (
     BuildHouseInputDTO,
     JailActionInputDTO,
     BankActionInputDTO,
+    RollDiceInputDTO,
 )
 from src.domain.models import Game, Player
 from src.domain.models.enums import GameVariant, GameStatus
@@ -60,6 +62,7 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.jail_uc = JailActionUseCase(self.game_repo, self.player_repo, self.tx_repo)
         self.bank_uc = BankActionUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
         self.finish_uc = FinishGameUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
+        self.roll_uc = RollDiceUseCase(self.game_repo, self.player_repo, self.property_repo, self.tx_repo)
 
     def tearDown(self):
         self.session.close()
@@ -199,6 +202,48 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         deleted_count = self.game_repo.delete_bulk([g2.id])
         self.assertEqual(deleted_count, 1)
         self.assertIsNone(self.game_repo.get_by_id(g2.id))
+
+    def test_roll_dice_movement_and_pass_go(self):
+        # Ana tira 3 + 4 = 7 desde posición 0
+        self.p1.position = 0
+        self.player_repo.save(self.p1)
+
+        roll_res = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, dice_1=3, dice_2=4
+        ))
+        self.assertEqual(roll_res.old_position, 0)
+        self.assertEqual(roll_res.new_position, 7)
+        self.assertEqual(roll_res.total_roll, 7)
+        self.assertFalse(roll_res.passed_go)
+
+        # Ana se encuentra en pos 38 y tira 4 -> avanza a pos 2 pasando por la SALIDA
+        self.p1.position = 38
+        self.p1.money = 1000
+        self.player_repo.save(self.p1)
+
+        roll_res2 = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, total_roll=4
+        ))
+        self.assertEqual(roll_res2.old_position, 38)
+        self.assertEqual(roll_res2.new_position, 2)
+        self.assertTrue(roll_res2.passed_go)
+        # Saldo aumenta automáticamente en $200
+        p1_updated = self.player_repo.get_by_id(self.p1.id)
+        self.assertEqual(p1_updated.money, 1200)
+
+    def test_roll_dice_go_to_jail(self):
+        # Ana está en pos 25 y tira 5 -> cae en pos 30 (¡Vaya a la Cárcel!)
+        self.p1.position = 25
+        self.player_repo.save(self.p1)
+
+        res = self.roll_uc.execute(RollDiceInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, total_roll=5
+        ))
+        self.assertEqual(res.action_required, "WENT_TO_JAIL")
+        self.assertEqual(res.new_position, 10) # Enviada a Cárcel
+        p1_updated = self.player_repo.get_by_id(self.p1.id)
+        self.assertTrue(p1_updated.in_jail)
+        self.assertEqual(p1_updated.position, 10)
 
 
 if __name__ == "__main__":

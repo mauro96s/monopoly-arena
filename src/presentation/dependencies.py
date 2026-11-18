@@ -16,6 +16,7 @@ from src.application.use_cases.build_house import BuildHouseUseCase
 from src.application.use_cases.mortgage_property import MortgagePropertyUseCase
 from src.application.use_cases.jail_action import JailActionUseCase
 from src.application.use_cases.bank_action import BankActionUseCase
+from src.application.use_cases.roll_dice import RollDiceUseCase
 from src.application.use_cases.finish_game import FinishGameUseCase
 
 
@@ -138,6 +139,20 @@ def get_finish_game_use_case(
     transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
 ) -> FinishGameUseCase:
     return FinishGameUseCase(
+        game_repo=game_repo,
+        player_repo=player_repo,
+        property_repo=property_repo,
+        transaction_repo=transaction_repo,
+    )
+
+
+def get_roll_dice_use_case(
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+    property_repo: PropertyRepositoryProtocol = Depends(get_property_repository),
+    transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
+) -> RollDiceUseCase:
+    return RollDiceUseCase(
         game_repo=game_repo,
         player_repo=player_repo,
         property_repo=property_repo,

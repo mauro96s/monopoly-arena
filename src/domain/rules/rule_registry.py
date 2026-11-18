@@ -93,6 +93,11 @@ class BoardRuleRegistry:
         cls._variants[variant_name] = board_strategies
 
     @classmethod
+    def get_board(cls, variant: GameVariant = GameVariant.CLASSIC) -> Dict[str, TileActionStrategy]:
+        """Retorna el mapa completo de casillas para la variante indicada."""
+        return cls._variants.get(variant) or cls._variants[GameVariant.CLASSIC]
+
+    @classmethod
     def get_strategy(cls, variant: GameVariant, tile_id: str) -> Optional[TileActionStrategy]:
         variant_rules = cls._variants.get(variant)
         if not variant_rules:

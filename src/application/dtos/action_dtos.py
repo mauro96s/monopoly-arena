@@ -158,3 +158,33 @@ class TransferMoneyOutputDTO:
     target_balance: Optional[int] = None
     current_turn: int = 1
     current_player_index: int = 0
+
+
+@dataclass(frozen=True)
+class RollDiceInputDTO:
+    game_id: int
+    player_id: int
+    dice_1: Optional[int] = None
+    dice_2: Optional[int] = None
+    total_roll: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class RollDiceOutputDTO:
+    game_id: int
+    player_id: int
+    player_name: str
+    dice_1: int
+    dice_2: int
+    total_roll: int
+    is_doubles: bool
+    old_position: int
+    new_position: int
+    passed_go: bool
+    landed_tile_id: str
+    landed_tile_name: str
+    landed_tile_type: str
+    action_required: str
+    action_details: dict
+    player_money: int
+    transaction_id: Optional[int] = None

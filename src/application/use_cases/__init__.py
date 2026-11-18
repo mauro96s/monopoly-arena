@@ -5,6 +5,7 @@ from src.application.use_cases.build_house import BuildHouseUseCase
 from src.application.use_cases.mortgage_property import MortgagePropertyUseCase
 from src.application.use_cases.jail_action import JailActionUseCase
 from src.application.use_cases.bank_action import BankActionUseCase
+from src.application.use_cases.roll_dice import RollDiceUseCase
 from src.application.use_cases.finish_game import FinishGameUseCase, FinishGameOutputDTO, PlayerRankingDTO
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "MortgagePropertyUseCase",
     "JailActionUseCase",
     "BankActionUseCase",
+    "RollDiceUseCase",
     "FinishGameUseCase",
     "FinishGameOutputDTO",
     "PlayerRankingDTO",

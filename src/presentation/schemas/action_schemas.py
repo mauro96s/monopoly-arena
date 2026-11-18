@@ -176,3 +176,31 @@ class CreateGameRequest(BaseModel):
 class AddPlayerRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=50)
     token: str = Field(..., description="Ficha del jugador (ej: 'Carro', 'Sombrero')")
+
+
+class RollDiceRequest(BaseModel):
+    player_id: int
+    dice_1: Optional[int] = Field(None, ge=1, le=6)
+    dice_2: Optional[int] = Field(None, ge=1, le=6)
+    total_roll: Optional[int] = Field(None, ge=2, le=12)
+
+
+class RollDiceResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    dice_1: int
+    dice_2: int
+    total_roll: int
+    is_doubles: bool
+    old_position: int
+    new_position: int
+    passed_go: bool
+    landed_tile_id: str
+    landed_tile_name: str
+    landed_tile_type: str
+    action_required: str
+    action_details: dict
+    player_money: int
+    transaction_id: Optional[int] = None
