@@ -1,6 +1,9 @@
 import unittest
 import uuid
-from src.infrastructure.database import Base, SessionLocal, engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from src.infrastructure.database import Base
 from src.infrastructure.repositories import (
     SqlGameRepository,
     SqlPlayerRepository,
@@ -29,8 +32,11 @@ from src.domain.exceptions import InvalidGameActionError, InsufficientFundsError
 
 class TestTacticalMonopolyFeatures(unittest.TestCase):
     def setUp(self):
-        Base.metadata.create_all(bind=engine)
-        self.session = SessionLocal()
+        # Base de datos en memoria 100% aislada para tests
+        self.engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(bind=self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        self.session = self.Session()
         self.game_repo = SqlGameRepository(self.session)
         self.player_repo = SqlPlayerRepository(self.session)
         self.property_repo = SqlPropertyRepository(self.session)
@@ -57,6 +63,7 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
 
     def tearDown(self):
         self.session.close()
+        Base.metadata.drop_all(self.engine)
 
     def test_auto_advance_turn_on_buy(self):
         # Ana compra Boardwalk
@@ -178,6 +185,20 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
             advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
         self.assertEqual(cm.exception.status_code, 400)
         self.assertIn("3 turnos en la Cárcel", cm.exception.detail)
+
+    def test_delete_single_and_bulk_games(self):
+        # Crear 2 partidas adicionales
+        g1 = self.game_repo.save(Game(id=None, code=f"DEL1-{uuid.uuid4().hex[:4]}", variant=GameVariant.CLASSIC, status=GameStatus.WAITING))
+        g2 = self.game_repo.save(Game(id=None, code=f"DEL2-{uuid.uuid4().hex[:4]}", variant=GameVariant.CLASSIC, status=GameStatus.WAITING))
+
+        # Eliminar g1 individualmente
+        self.assertTrue(self.game_repo.delete(g1.id))
+        self.assertIsNone(self.game_repo.get_by_id(g1.id))
+
+        # Eliminar g2 en lote
+        deleted_count = self.game_repo.delete_bulk([g2.id])
+        self.assertEqual(deleted_count, 1)
+        self.assertIsNone(self.game_repo.get_by_id(g2.id))
 
 
 if __name__ == "__main__":

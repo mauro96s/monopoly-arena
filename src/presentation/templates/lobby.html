@@ -89,7 +89,7 @@
                 <option value="Barco">🚢 Barco</option>
                 <option value="Gato">🐱 Gato</option>
               </select>
-              <div class="w-8"></div> <!-- Spacer for delete button -->
+              <div class="w-8"></div>
             </div>
 
             <!-- Jugador 2 (Default) -->
@@ -137,52 +137,130 @@
       </form>
     </div>
 
-    <!-- Lista de Partidas Activas o Recientes (5 Cols) -->
+    <!-- Lista de Partidas Activas o Recientes (5 Cols) con Gestión de Eliminación -->
     <div class="lg:col-span-5 space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-heading font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          <span>📋</span> Partidas Recientes
-        </h2>
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-mono">{{ recent_games|length }} registradas</span>
+      
+      <!-- Encabezado de la Sección con Acciones Masivas -->
+      <div class="flex items-center justify-between gap-2 pb-1">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-heading font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span>📋</span> Partidas
+          </h2>
+          <span id="games-total-badge" class="text-xs text-slate-500 dark:text-slate-400 font-mono">
+            {{ recent_games|length }} registradas
+          </span>
+        </div>
+
+        {% if recent_games %}
+          <div id="games-action-bar" class="flex items-center gap-2">
+            <!-- Botón Eliminar Seleccionadas (Oculto hasta que se seleccione al menos 1) -->
+            <button
+              id="btn-delete-selected"
+              type="button"
+              onclick="deleteSelectedGames()"
+              class="hidden px-2.5 py-1 text-xs font-heading font-bold rounded-lg bg-red-600 hover:bg-red-700 text-white shadow-xs transition-all flex items-center gap-1 active:scale-95"
+            >
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>Eliminar (<span id="selected-count">0</span>)</span>
+            </button>
+
+            <!-- Botón Vaciar Todo -->
+            <button
+              id="btn-delete-all"
+              type="button"
+              onclick="deleteAllGames()"
+              class="text-xs font-semibold text-red-500 hover:text-red-700 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors flex items-center gap-1"
+              title="Eliminar todas las partidas registradas"
+            >
+              <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+              <span class="hidden sm:inline">Vaciar todo</span>
+            </button>
+          </div>
+        {% endif %}
       </div>
 
+      <!-- Barra de selección múltiple (si hay partidas) -->
       {% if recent_games %}
-        <div class="space-y-3">
+        <div id="select-all-wrapper" class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/50 text-xs text-slate-600 dark:text-slate-400">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              id="select-all-checkbox"
+              onchange="toggleSelectAll(this.checked)"
+              class="rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+            />
+            <span class="font-medium">Seleccionar todas las partidas</span>
+          </label>
+          <span class="text-[11px] text-slate-400">Marca las que desees borrar</span>
+        </div>
+      {% endif %}
+
+      <!-- Lista de Partidas -->
+      <div id="games-list-container" class="space-y-3">
+        {% if recent_games %}
           {% for g in recent_games %}
-            <div class="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-300 dark:hover:border-emerald-600 shadow-sm transition-all group">
-              <div class="flex items-start justify-between">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="font-mono font-bold text-base text-slate-900 dark:text-white uppercase tracking-wider">
-                      {{ g.code }}
-                    </span>
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold uppercase {% if g.status == 'IN_PROGRESS' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif g.status == 'WAITING' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300{% endif %}">
-                      {{ g.status }}
-                    </span>
+            <div
+              id="game-item-{{ g.id }}"
+              class="game-item p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-300 dark:hover:border-emerald-600 shadow-sm transition-all group"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <!-- Checkbox individual -->
+                  <input
+                    type="checkbox"
+                    class="game-checkbox mt-1 rounded border-slate-300 dark:border-slate-600 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                    data-id="{{ g.id }}"
+                    onchange="updateSelectedCount()"
+                  />
+
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="font-mono font-bold text-base text-slate-900 dark:text-white uppercase tracking-wider">
+                        {{ g.code }}
+                      </span>
+                      <span class="text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold uppercase {% if g.status == 'IN_PROGRESS' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif g.status == 'WAITING' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300{% endif %}">
+                        {{ g.status }}
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
+                      Turno actual: <strong class="text-slate-700 dark:text-slate-200">#{{ g.current_turn }}</strong>
+                    </p>
                   </div>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
-                    Turno actual: <strong class="text-slate-700 dark:text-slate-200">#{{ g.current_turn }}</strong>
-                  </p>
                 </div>
 
-                <a
-                  href="/game/{{ g.id }}"
-                  class="px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-700/80 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>Entrar</span>
-                  <span>→</span>
-                </a>
+                <!-- Acciones individuales: Entrar y Eliminar -->
+                <div class="flex items-center gap-1.5">
+                  <a
+                    href="/game/{{ g.id }}"
+                    class="px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-slate-700/80 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>Entrar</span>
+                    <span>→</span>
+                  </a>
+
+                  <!-- Botón Eliminar Individual -->
+                  <button
+                    type="button"
+                    onclick="deleteSingleGame({{ g.id }}, '{{ g.code }}')"
+                    class="p-2 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                    title="Eliminar partida {{ g.code }}"
+                  >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
               </div>
             </div>
           {% endfor %}
-        </div>
-      {% else %}
-        <div class="p-8 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2">
-          <span class="text-3xl">🏠</span>
-          <p class="text-sm font-medium text-slate-700 dark:text-slate-300">No hay partidas registradas aún</p>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Crea tu primera sala en el formulario para empezar a llevar el control financiero de tu partida.</p>
-        </div>
-      {% endif %}
+        {% else %}
+          <!-- Estado vacío cuando no hay partidas -->
+          <div id="no-games-box" class="p-8 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2">
+            <span class="text-3xl">🏠</span>
+            <p class="text-sm font-medium text-slate-700 dark:text-slate-300">No hay partidas registradas aún</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Crea tu primera sala en el formulario para empezar a llevar el control financiero de tu partida.</p>
+          </div>
+        {% endif %}
+      </div>
+
     </div>
 
   </div>
@@ -323,5 +401,156 @@
       submitBtn.innerHTML = `<span>Comenzar Partida</span> <span>→</span>`;
     }
   });
+
+  // ========================================================
+  // GESTIÓN DE ELIMINACIÓN DE PARTIDAS (INDIVIDUAL Y MASIVA)
+  // ========================================================
+
+  function getCheckedGameIds() {
+    return Array.from(document.querySelectorAll('.game-checkbox:checked')).map(cb => parseInt(cb.dataset.id, 10));
+  }
+
+  function updateSelectedCount() {
+    const checked = getCheckedGameIds();
+    const btnDeleteSelected = document.getElementById('btn-delete-selected');
+    const selectedCountSpan = document.getElementById('selected-count');
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const totalCheckboxes = document.querySelectorAll('.game-checkbox').length;
+
+    if (selectedCountSpan) selectedCountSpan.textContent = checked.length;
+
+    if (btnDeleteSelected) {
+      if (checked.length > 0) {
+        btnDeleteSelected.classList.remove('hidden');
+      } else {
+        btnDeleteSelected.classList.add('hidden');
+      }
+    }
+
+    if (selectAllCheckbox && totalCheckboxes > 0) {
+      selectAllCheckbox.checked = checked.length === totalCheckboxes;
+      selectAllCheckbox.indeterminate = checked.length > 0 && checked.length < totalCheckboxes;
+    }
+  }
+
+  function toggleSelectAll(isChecked) {
+    document.querySelectorAll('.game-checkbox').forEach(cb => {
+      cb.checked = isChecked;
+    });
+    updateSelectedCount();
+  }
+
+  function checkEmptyState() {
+    const remaining = document.querySelectorAll('.game-item').length;
+    const badge = document.getElementById('games-total-badge');
+    if (badge) badge.textContent = `${remaining} registradas`;
+
+    if (remaining === 0) {
+      const selectAllWrapper = document.getElementById('select-all-wrapper');
+      const actionBar = document.getElementById('games-action-bar');
+      if (selectAllWrapper) selectAllWrapper.remove();
+      if (actionBar) actionBar.remove();
+
+      const container = document.getElementById('games-list-container');
+      if (container) {
+        container.innerHTML = `
+          <div id="no-games-box" class="p-8 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2 animate-fade-in">
+            <span class="text-3xl">🏠</span>
+            <p class="text-sm font-medium text-slate-700 dark:text-slate-300">No hay partidas registradas aún</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Crea tu primera sala en el formulario para empezar a llevar el control financiero de tu partida.</p>
+          </div>
+        `;
+      }
+    }
+  }
+
+  async function deleteSingleGame(gameId, gameCode) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar la partida ${gameCode}? Se borrarán todos sus turnos y registros contables.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/games/${gameId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al eliminar la partida');
+      }
+
+      const item = document.getElementById(`game-item-${gameId}`);
+      if (item) {
+        item.style.transition = 'all 0.25s ease';
+        item.style.opacity = '0';
+        item.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          item.remove();
+          updateSelectedCount();
+          checkEmptyState();
+        }, 250);
+      }
+
+      showToast(`Partida ${gameCode} eliminada.`);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function deleteSelectedGames() {
+    const ids = getCheckedGameIds();
+    if (ids.length === 0) return;
+
+    if (!confirm(`¿Estás seguro de que deseas eliminar las ${ids.length} partidas seleccionadas?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/v1/games/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_ids: ids })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al eliminar partidas');
+      }
+
+      ids.forEach(id => {
+        const item = document.getElementById(`game-item-${id}`);
+        if (item) item.remove();
+      });
+
+      updateSelectedCount();
+      checkEmptyState();
+      showToast(`${ids.length} partidas eliminadas.`);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function deleteAllGames() {
+    if (!confirm('¿Deseas eliminar TODAS las partidas existentes? Esta acción limpiará todo el historial.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/v1/games', { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Error al vaciar partidas');
+      }
+
+      const data = await res.json();
+      document.querySelectorAll('.game-item').forEach(el => el.remove());
+      checkEmptyState();
+      showToast(`Se eliminaron ${data.deleted_count} partidas.`);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  // Inicializar iconos de Lucide
+  if (window.lucide) {
+    lucide.createIcons();
+  }
 </script>
 {% endblock %}

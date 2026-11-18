@@ -56,3 +56,29 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.current_player_index = game.current_player_index
                 self._session.commit()
             return game
+
+    def delete(self, game_id: int) -> bool:
+        model = self._session.query(GameModel).filter(GameModel.id == game_id).first()
+        if not model:
+            return False
+        self._session.delete(model)
+        self._session.commit()
+        return True
+
+    def delete_bulk(self, game_ids: list[int]) -> int:
+        if not game_ids:
+            return 0
+        models = self._session.query(GameModel).filter(GameModel.id.in_(game_ids)).all()
+        count = len(models)
+        for m in models:
+            self._session.delete(m)
+        self._session.commit()
+        return count
+
+    def delete_all(self) -> int:
+        models = self._session.query(GameModel).all()
+        count = len(models)
+        for m in models:
+            self._session.delete(m)
+        self._session.commit()
+        return count

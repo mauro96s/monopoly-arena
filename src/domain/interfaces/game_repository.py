@@ -18,3 +18,15 @@ class GameRepositoryProtocol(Protocol):
     def save(self, game: Game) -> Game:
         """Crea o actualiza una partida."""
         ...
+
+    def delete(self, game_id: int) -> bool:
+        """Elimina una partida por su ID numérico."""
+        ...
+
+    def delete_bulk(self, game_ids: List[int]) -> int:
+        """Elimina varias partidas por sus IDs."""
+        ...
+
+    def delete_all(self) -> int:
+        """Elimina todas las partidas existentes."""
+        ...

@@ -405,3 +405,38 @@ def list_transactions(
         )
         for t in txs
     ]
+
+
+class BulkDeleteGamesRequest(BaseModel):
+    game_ids: List[int]
+
+
+@router.delete("/{game_id}")
+def delete_game(
+    game_id: int,
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+):
+    """Elimina una partida individual por ID."""
+    success = game_repo.delete(game_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    return {"success": True, "deleted_id": game_id}
+
+
+@router.post("/bulk-delete")
+def bulk_delete_games(
+    payload: BulkDeleteGamesRequest,
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+):
+    """Elimina múltiples partidas seleccionadas por ID."""
+    deleted_count = game_repo.delete_bulk(payload.game_ids)
+    return {"success": True, "deleted_count": deleted_count}
+
+
+@router.delete("")
+def delete_all_games(
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+):
+    """Elimina todas las partidas existentes en el sistema."""
+    deleted_count = game_repo.delete_all()
+    return {"success": True, "deleted_count": deleted_count}
