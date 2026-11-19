@@ -102,7 +102,7 @@ class JailActionUseCase:
                 raise InvalidGameActionError(f"{player.name} no está en prisión.")
 
             # REGLA OBLIGATORIA DEL 3ER TURNO
-            if player.jail_turns >= 2:
+            if player.jail_turns >= 3:
                 raise InvalidGameActionError(
                     "Es tu 3er turno en la Cárcel: las reglas oficiales prohíben intentar dobles y obligan a pagar la fianza de $50 o usar tarjeta para salir."
                 )
@@ -212,12 +212,15 @@ class JailActionUseCase:
 
         elif dto.action == "GO_TO_JAIL":
             player.in_jail = True
-            player.jail_turns = 1
+            player.jail_turns = 0
             player.position = 10
             desc = f"👮 {player.name} fue enviado a la Cárcel"
             self._player_repo.save(player)
             if dto.auto_advance_turn and all_players:
                 game.advance_turn(len(all_players))
+                game.has_rolled_dice = False
+                game.consecutive_doubles = 0
+                self._game_repo.save(game)
                 self._game_repo.save(game)
         else:
             raise InvalidGameActionError(f"Acción de cárcel desconocida: '{dto.action}'.")

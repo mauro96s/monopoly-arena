@@ -102,7 +102,7 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         # Enviar a Ana a prisión
         jail_res = self.jail_uc.execute(JailActionInputDTO(game_id=self.game.id, player_id=self.p1.id, action="GO_TO_JAIL", auto_advance_turn=False))
         self.assertTrue(jail_res.in_jail)
-        self.assertEqual(jail_res.jail_turns, 1)
+        self.assertEqual(jail_res.jail_turns, 0)
 
         # Ana paga la fianza de $50 y queda libre
         free_res = self.jail_uc.execute(JailActionInputDTO(game_id=self.game.id, player_id=self.p1.id, action="PAY_FINE", auto_advance_turn=False))
@@ -157,20 +157,29 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         from src.presentation.routers.games_router import advance_turn
         from fastapi import HTTPException
 
-        # Poner a Ana en la cárcel con 1 turno
+        # Poner a Ana en la cárcel
         self.jail_uc.execute(JailActionInputDTO(
             game_id=self.game.id, player_id=self.p1.id, action="GO_TO_JAIL", auto_advance_turn=False
         ))
         ana = self.player_repo.get_by_id(self.p1.id)
         self.assertTrue(ana.in_jail)
+        self.assertEqual(ana.jail_turns, 0)
+
+        # Es el turno de Ana (índice 0). Avanzar turno incrementa su turno de cárcel a 1
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
+        ana = self.player_repo.get_by_id(self.p1.id)
         self.assertEqual(ana.jail_turns, 1)
 
-        # Es el turno de Ana (índice 0). Avanzar turno incrementa su turno de cárcel a 2
+        # Completar la ronda de Beto y Carlos para volver a Ana
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Beto
+        advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Carlos
+
+        # Ana vuelve a estar en turno con jail_turns = 1. Al avanzar turno se incrementa a 2
         advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo)
         ana = self.player_repo.get_by_id(self.p1.id)
         self.assertEqual(ana.jail_turns, 2)
 
-        # Completar la ronda de Beto y Carlos para volver a Ana
+        # Completar la ronda de nuevo para volver a Ana
         advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Beto
         advance_turn(self.game.id, self.game_repo, self.player_repo, self.tx_repo) # Carlos
 
@@ -341,17 +350,27 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         ))
         self.assertEqual(res_fail2.jail_turns, 2)
 
-        # Devolver turno a Ana (este es su 3er turno, acumula 2 turnos previos)
+        # Devolver turno a Ana (simulando 3ra ronda)
         self.game.current_player_index = 0
         self.game_repo.save(self.game)
 
-        # 3. Intentar sacar dobles en su 3er turno DEBE ESTAR BLOQUEADO
+        # 3. 3er turno en cárcel sin dobles (1 + 3 = 4)
+        res_fail3 = self.jail_uc.execute(JailActionInputDTO(
+            game_id=self.game.id, player_id=self.p1.id, action="TRY_DOUBLES", dice_1=1, dice_2=3
+        ))
+        self.assertEqual(res_fail3.jail_turns, 3)
+
+        # Devolver turno a Ana (este es su 4to turno / habiendo cumplido sus 3 turnos fallidos)
+        self.game.current_player_index = 0
+        self.game_repo.save(self.game)
+
+        # 4. Intentar sacar dobles tras 3 turnos cumplidos DEBE ESTAR BLOQUEADO
         with self.assertRaises(InvalidGameActionError):
             self.jail_uc.execute(JailActionInputDTO(
                 game_id=self.game.id, player_id=self.p1.id, action="TRY_DOUBLES", dice_1=5, dice_2=5
             ))
 
-        # 4. Pagar fianza obligatoria de $50
+        # 5. Pagar fianza obligatoria de $50
         res_pay = self.jail_uc.execute(JailActionInputDTO(
             game_id=self.game.id, player_id=self.p1.id, action="PAY_FINE"
         ))

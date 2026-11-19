@@ -90,7 +90,7 @@ class JailActionRequest(BaseModel):
     action: str = Field(..., description="'PAY_FINE', 'USE_CARD', 'TRY_DOUBLES', 'GO_TO_JAIL'")
     dice_1: Optional[int] = Field(None, ge=1, le=6)
     dice_2: Optional[int] = Field(None, ge=1, le=6)
-    auto_advance_turn: bool = False
+    auto_advance_turn: Optional[bool] = Field(None, description="Avanzar turno automáticamente tras encarcelar (True por defecto para GO_TO_JAIL)")
 
 
 class JailActionResponse(BaseModel):

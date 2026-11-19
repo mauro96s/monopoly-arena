@@ -99,7 +99,7 @@ class RollDiceUseCase:
             if game.consecutive_doubles >= 3:
                 # ¡3 dobles seguidos! Directo a la Cárcel y finaliza turno
                 player.in_jail = True
-                player.jail_turns = 1
+                player.jail_turns = 0
                 player.position = 10
                 self._player_repo.save(player)
 
@@ -119,6 +119,8 @@ class RollDiceUseCase:
 
                 # Fin de turno forzado
                 game.advance_turn(len(all_players))
+                game.has_rolled_dice = False
+                game.consecutive_doubles = 0
                 self._game_repo.save(game)
 
                 return RollDiceOutputDTO(
@@ -191,7 +193,7 @@ class RollDiceUseCase:
         # CASO A: Casilla 30 (¡Vaya a la Cárcel!)
         if new_position == 30:
             player.in_jail = True
-            player.jail_turns = 1
+            player.jail_turns = 0
             player.position = 10  # Trasladar a prisión
             self._player_repo.save(player)
 
@@ -211,6 +213,8 @@ class RollDiceUseCase:
 
             # Fin de turno forzado al ir a prisión (pierde cualquier turno extra)
             game.advance_turn(len(all_players))
+            game.has_rolled_dice = False
+            game.consecutive_doubles = 0
             self._game_repo.save(game)
 
             return RollDiceOutputDTO(

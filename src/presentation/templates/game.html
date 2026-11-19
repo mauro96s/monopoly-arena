@@ -1120,6 +1120,7 @@
 
       if (rollData.action_required === 'WENT_TO_JAIL') {
         showToast(`🚨 ¡${rollData.player_name} fue enviado directo a la Cárcel! Turno finalizado.`, 'error');
+        dismissContextualAction();
       } else {
         if (rollData.passed_go) {
           showToast(`🚩 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
@@ -1128,13 +1129,13 @@
         if (rollData.is_doubles && rollData.extra_turn) {
           showToast(`✨ ¡Dobles (${rollData.dice_1}+${rollData.dice_2})! Tienes un turno extra.`);
         }
+
+        // Desplegar Acción Contextual por Casilla (1 Solo Toque)
+        displayContextualAction(rollData);
       }
 
       // Actualizar datos del juego
       await refreshGameData();
-
-      // Desplegar Acción Contextual por Casilla (1 Solo Toque)
-      displayContextualAction(rollData);
 
     } catch (e) {
       dice1El.classList.remove('dice-rolling');
@@ -1157,13 +1158,24 @@
     if (!activePlayer) return;
 
     try {
+      const d1El = document.getElementById('manual-die-1');
+      const d2El = document.getElementById('manual-die-2');
+      const d1 = parseInt(d1El ? d1El.value : '', 10);
+      const d2 = parseInt(d2El ? d2El.value : '', 10);
+
+      const payload = {
+        player_id: activePlayer.id,
+        action: 'TRY_DOUBLES'
+      };
+      if (!isNaN(d1) && d1 >= 1 && d1 <= 6 && !isNaN(d2) && d2 >= 1 && d2 <= 6) {
+        payload.dice_1 = d1;
+        payload.dice_2 = d2;
+      }
+
       const res = await fetch(`/api/v1/games/${GAME_ID}/actions/jail`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player_id: activePlayer.id,
-          action: 'TRY_DOUBLES'
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
@@ -1181,10 +1193,20 @@
         document.getElementById('dice-sum-badge').textContent = `= ${data.dice_1 + data.dice_2}`;
       }
 
+      // Limpiar inputs manuales si se utilizaron
+      if (d1El && d2El) {
+        d1El.value = '';
+        d2El.value = '';
+        onManualDiceInputChanged();
+      }
+
+      closeActionModal();
+
       if (data.is_doubles) {
         showToast(`🎉 ¡${activePlayer.name} sacó dobles (${data.dice_1}+${data.dice_2}) y quedó libre avanzando a casilla #${data.new_position}!`);
       } else {
-        showToast(`🔒 No hubo dobles (${data.dice_1}+${data.dice_2}). Turno #${data.jail_turns} cumplido. Turno terminado.`);
+        showToast(`🔒 No hubo dobles (${data.dice_1}+${data.dice_2}). Intento #${data.jail_turns} cumplido. Turno terminado.`);
+        dismissContextualAction();
       }
 
       await refreshGameData();
@@ -1214,6 +1236,7 @@
         body: JSON.stringify({
           player_id: activePlayer.id,
           action: action,
+          auto_advance_turn: action === 'GO_TO_JAIL' ? true : false,
         })
       });
 
@@ -1227,7 +1250,8 @@
       } else if (action === 'USE_CARD') {
         showToast(`🎫 ¡${activePlayer.name} usó tarjeta y quedó libre! Ya puedes tirar los dados.`);
       } else if (action === 'GO_TO_JAIL') {
-        showToast(`🚨 ¡${activePlayer.name} fue enviado a prisión!`);
+        showToast(`🚨 ¡${activePlayer.name} fue enviado a la Cárcel! Turno finalizado.`, 'error');
+        dismissContextualAction();
       }
 
       closeActionModal();
@@ -2303,6 +2327,7 @@
 
     if (activePlayer.in_jail) {
       const isForcedFine = activePlayer.jail_turns >= 3;
+      const turnNum = Math.min(activePlayer.jail_turns + 1, 3);
       statusBox.innerHTML = `
         <div class="flex items-center gap-3">
           <span class="text-3xl">⛓️</span>
@@ -2311,8 +2336,7 @@
               ${activePlayer.name} está en Prisión
             </h4>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Ronda <strong class="text-slate-800 dark:text-slate-200">${activePlayer.jail_turns}</strong> de 3 permitidas.
-              ${isForcedFine ? '<span class="block text-red-600 font-bold mt-0.5">¡3er Turno obligatorio! Debes pagar los $50 de fianza o usar tarjeta para liberarte.</span>' : ''}
+              ${isForcedFine ? '<strong class="text-red-600">¡3er Turno Cumplido!</strong> Debes pagar la fianza de $50 o usar tarjeta para liberarte.' : `Intento <strong class="text-slate-800 dark:text-slate-200">${turnNum}</strong> de 3 permitidos.`}
             </p>
           </div>
         </div>
@@ -2335,7 +2359,7 @@
             class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
           >
             <span>Usar Tarjeta "Salga Libre de la Cárcel"</span>
-            <span>Gratis</span>
+            <span>(${activePlayer.out_of_jail_cards || 0} disponibles)</span>
           </button>
         `;
       } else {
@@ -2346,7 +2370,7 @@
             class="w-full p-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95"
           >
             <i data-lucide="dices" class="w-4 h-4"></i>
-            <span>🎲 Intentar Sacar Dobles (Tirar Dados)</span>
+            <span>🎲 Intentar Sacar Dobles (Pares)</span>
           </button>
 
           <button
@@ -2354,7 +2378,7 @@
             onclick="executeJailAction('PAY_FINE')"
             class="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
           >
-            <span>Pagar Fianza de Salida</span>
+            <span>Pagar Fianza de Salida ($50)</span>
             <span class="font-mono font-bold">$50</span>
           </button>
 
@@ -2364,7 +2388,7 @@
             class="w-full p-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 text-white dark:text-slate-900 dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-between shadow-xs active:scale-95"
           >
             <span>Usar Tarjeta "Salga Libre de la Cárcel"</span>
-            <span>Gratis</span>
+            <span>(${activePlayer.out_of_jail_cards || 0} disponibles)</span>
           </button>
         `;
       }
@@ -2389,7 +2413,7 @@
           onclick="executeJailAction('GO_TO_JAIL')"
           class="w-full p-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xs active:scale-95"
         >
-          <span>🚨 ¡Enviar a la Cárcel! (Casilla 30 o 3 Dobles)</span>
+          <span>🚨 ¡Enviar a la Cárcel! (Finaliza Turno Inmediatamente)</span>
         </button>
       `;
     }

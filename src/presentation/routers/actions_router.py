@@ -344,13 +344,14 @@ def jail_action(
     target_player_id = payload.player_id if payload.player_id is not None else active_player.id
 
     assert_active_turn(game_id, target_player_id, game_repo, player_repo)
+    auto_advance = payload.auto_advance_turn if payload.auto_advance_turn is not None else (True if payload.action == "GO_TO_JAIL" else False)
     dto = JailActionInputDTO(
         game_id=game_id,
         player_id=target_player_id,
         action=payload.action,
         dice_1=payload.dice_1,
         dice_2=payload.dice_2,
-        auto_advance_turn=payload.auto_advance_turn,
+        auto_advance_turn=auto_advance,
     )
     try:
         result = use_case.execute(dto)
