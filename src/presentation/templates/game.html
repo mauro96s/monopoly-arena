@@ -4,33 +4,35 @@
 
 {% block extra_head %}
 <style>
-  /* Tablero Cuadrado de 11x11 Casillas */
+  /* Tablero Circuito en M de 11x6 Casillas */
   .monopoly-board {
     display: grid;
     grid-template-columns: repeat(11, minmax(0, 1fr));
-    grid-template-rows: repeat(11, minmax(0, 1fr));
+    grid-template-rows: repeat(6, 84px);
+    gap: 0.35rem;
   }
 
   .board-tile {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     user-select: none;
+    height: 84px;
   }
   .board-tile:hover {
-    z-index: 25;
-    transform: scale(1.04);
-    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
+    z-index: 35;
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.25);
   }
 
   /* Halo animado para el jugador en turno */
   @keyframes activePulse {
     0%, 100% {
       box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-      transform: scale(1.1);
+      transform: scale(1.08);
     }
     50% {
-      box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-      transform: scale(1.22);
+      box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      transform: scale(1.18);
     }
   }
   .active-token-pulse {
@@ -97,174 +99,226 @@
 <div class="space-y-6">
 
   <!-- ========================================================================= -->
-  <!-- TABLERO VISUAL EN VIVO: 40 CASILLAS OFICIALES EN PERÍMETRO 11x11          -->
+  <!-- PANEL SUPERIOR DE COMANDO: HUD DE TURNO, DADOS Y ACCIONES EN MESA           -->
   <!-- ========================================================================= -->
-  <div class="relative w-full max-w-[940px] aspect-square mx-auto bg-slate-200/70 dark:bg-slate-900/90 rounded-3xl p-1.5 sm:p-2.5 border-2 border-slate-300 dark:border-slate-700 shadow-2xl overflow-hidden">
+  <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-slate-200/90 dark:border-slate-700/80 shadow-sm space-y-3 max-w-[1240px] mx-auto">
     
-    <div id="monopoly-board-grid" class="monopoly-board gap-1 w-full h-full">
-
-      <!-- ===================================================================== -->
-      <!-- ÁREA CENTRAL DEL TABLERO: HUD DE JUEGO, DADOS Y ACCIONES EN VIVO      -->
-      <!-- ===================================================================== -->
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Jugador en Turno Activo (Toca para abrir Menú Táctico) -->
       <div
-        style="grid-column: 2 / 11; grid-row: 2 / 11;"
-        class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-4 sm:p-6 flex flex-col justify-between border border-slate-200/90 dark:border-slate-700/80 shadow-inner overflow-hidden relative z-10"
+        onclick="openActiveTurnModal()"
+        title="Toca para abrir el Menú Táctico (Construir, Hipotecas, Banca)"
+        class="inline-flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-xs cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all active:scale-95"
       >
-        
-        <!-- Header Central: Sala, Ronda y Estado de Turno -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-700/60">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">🎲</span>
-            <div>
-              <div class="flex items-center gap-2">
-                <h1 class="text-base sm:text-lg font-heading font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
-                  {{ game.code }}
-                </h1>
-                <span id="game-status-badge" class="text-[9px] font-mono uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
-                  {{ game.status }}
-                </span>
-              </div>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong>
-              </span>
-            </div>
+        <span id="active-player-token-large" class="text-3xl">🎩</span>
+        <div class="text-left">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[9px] font-mono uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider">
+              Turno Activo
+            </span>
+            <span class="text-slate-300 dark:text-slate-600">•</span>
+            <span id="active-player-location-text" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold">
+              SALIDA (#0)
+            </span>
           </div>
+          <h2 id="active-player-name-large" class="text-base sm:text-lg font-heading font-extrabold text-slate-900 dark:text-white leading-tight">
+            Cargando...
+          </h2>
+        </div>
+        <div class="pl-3 border-l border-emerald-200 dark:border-emerald-800 text-right">
+          <span class="block text-[9px] font-mono uppercase text-slate-400 font-medium">Saldo</span>
+          <span id="active-player-money-large" class="text-lg sm:text-xl font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+            $0
+          </span>
+        </div>
+      </div>
 
-          <!-- Botón de Pasar Turno -->
+      <!-- Controles de Dados Centrales (Dados 1 y 2, Tirar y Manual) -->
+      <div id="normal-dice-controls" class="flex flex-wrap items-center justify-center gap-2.5">
+        <div class="flex items-center gap-2">
+          <div id="dice-box-1" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-xl text-slate-800 dark:text-white shadow-xs transition-transform select-none">
+            -
+          </div>
+          <span class="text-slate-400 font-bold text-xs">+</span>
+          <div id="dice-box-2" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-xl text-slate-800 dark:text-white shadow-xs transition-transform select-none">
+            -
+          </div>
+          <span id="dice-sum-badge" class="font-mono font-extrabold text-xs text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600">
+            = ?
+          </span>
+        </div>
+
+        <!-- Botón Tirar Dados -->
+        <button
+          id="btn-roll-dice"
+          type="button"
+          onclick="handleRollDiceClick()"
+          class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5"
+        >
+          <i data-lucide="dices" class="w-4 h-4"></i>
+          <span id="btn-roll-dice-text">Tirar Dados</span>
+        </button>
+
+        <!-- Entrada rápida para dados físicos en mesa -->
+        <div id="manual-dice-container" class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 pl-1 border-l border-slate-200 dark:border-slate-700">
+          <input
+            id="manual-die-1"
+            type="number"
+            min="1"
+            max="6"
+            placeholder="D1"
+            oninput="onManualDiceInputChanged()"
+            class="w-8 h-7 px-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          />
+          <span class="text-slate-400 font-bold text-xs">+</span>
+          <input
+            id="manual-die-2"
+            type="number"
+            min="1"
+            max="6"
+            placeholder="D2"
+            oninput="onManualDiceInputChanged()"
+            class="w-8 h-7 px-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+          />
+          <span id="manual-dice-sum-badge" class="font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            = ?
+          </span>
           <button
-            id="advance-turn-btn"
+            id="btn-manual-roll"
             type="button"
-            class="py-1.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-700/80 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1 active:scale-95"
-            title="Pasar turno al siguiente jugador"
+            onclick="handleManualRollClick()"
+            class="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-xs font-heading font-bold text-slate-700 dark:text-slate-200 transition-colors"
           >
-            <span>Pasar Turno</span>
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+            Mover
           </button>
         </div>
 
-        <!-- Panel del Jugador Activo (Turno Actual) -->
-        <div id="active-player-hud" class="my-auto py-2 text-center space-y-3">
-          
-          <div
-            onclick="openActiveTurnModal()"
-            title="Toca para abrir el Menú Táctico (Construir, Hipotecas, Banca)"
-            class="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-xs cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all active:scale-95"
-          >
-            <span id="active-player-token-large" class="text-3xl sm:text-4xl">🎩</span>
-            <div class="text-left">
-              <span class="block text-[10px] font-mono uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider">
-                Turno Activo
-              </span>
-              <h2 id="active-player-name-large" class="text-lg sm:text-xl font-heading font-extrabold text-slate-900 dark:text-white leading-tight">
-                Cargando...
-              </h2>
-            </div>
-            <div class="pl-3 border-l border-emerald-200 dark:border-emerald-800 text-right">
-              <span class="block text-[10px] font-mono uppercase text-slate-400">Saldo</span>
-              <span id="active-player-money-large" class="text-xl sm:text-2xl font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-                $0
-              </span>
-            </div>
-          </div>
-
-          <!-- Indicador de Casilla Actual -->
-          <div class="text-xs text-slate-600 dark:text-slate-300 font-mono">
-            Ubicación: <strong id="active-player-location-text" class="text-slate-900 dark:text-white font-heading font-bold">SALIDA (#0)</strong>
-          </div>
-
-          <!-- Alerta de Turno Extra por Dobles -->
-          <div id="doubles-extra-badge" class="hidden inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 px-3 py-1 rounded-full border border-emerald-300 dark:border-emerald-700 animate-pulse mx-auto">
-            <span>✨</span>
-            <span id="doubles-extra-text">¡Sacaste dobles! Tiro extra disponible</span>
-          </div>
-
-          <!-- Control de Tirada de Dados Normal -->
-          <div id="normal-dice-controls" class="flex flex-col items-center justify-center gap-2 pt-1">
-            <div class="flex items-center gap-3">
-              <div id="dice-box-1" class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-2xl text-slate-800 dark:text-white shadow-sm transition-transform select-none">
-                -
-              </div>
-              <span class="text-slate-400 font-bold">+</span>
-              <div id="dice-box-2" class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-2xl text-slate-800 dark:text-white shadow-sm transition-transform select-none">
-                -
-              </div>
-              <span id="dice-sum-badge" class="font-mono font-extrabold text-sm sm:text-base text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600">
-                = ?
-              </span>
-            </div>
-
-            <!-- Botón Tirar Dados -->
-            <button
-              id="btn-roll-dice"
-              type="button"
-              onclick="handleRollDiceClick()"
-              class="py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2"
-            >
-              <i data-lucide="dices" class="w-4 h-4"></i>
-              <span id="btn-roll-dice-text">Tirar Dados y Avanzar</span>
-            </button>
-
-            <!-- Acceso Rápido para Dados Físicos en Mesa (2 Dados Independientes) -->
-            <div id="manual-dice-container" class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
-              <span class="text-[11px] font-medium text-slate-400">¿Dados en mesa?</span>
-              <div class="flex items-center gap-1.5">
-                <input
-                  id="manual-die-1"
-                  type="number"
-                  min="1"
-                  max="6"
-                  placeholder="D1"
-                  oninput="onManualDiceInputChanged()"
-                  class="w-10 h-7 px-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                />
-                <span class="text-slate-400 font-bold text-xs">+</span>
-                <input
-                  id="manual-die-2"
-                  type="number"
-                  min="1"
-                  max="6"
-                  placeholder="D2"
-                  oninput="onManualDiceInputChanged()"
-                  class="w-10 h-7 px-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                />
-                <span id="manual-dice-sum-badge" class="font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors">
-                  = ?
-                </span>
-              </div>
-              <button
-                id="btn-manual-roll"
-                type="button"
-                onclick="handleManualRollClick()"
-                class="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-xs font-heading font-bold text-slate-700 dark:text-slate-200 transition-colors"
-              >
-                Mover
-              </button>
-            </div>
-          </div>
-
-          <!-- Panel de Control de Cárcel en HUD -->
-          <div id="jail-hud-controls" class="hidden max-w-sm mx-auto pt-1 animate-fade-in"></div>
-
-          <!-- Tarjeta de Acción Contextual por Casilla (1 Solo Toque) -->
-          <div id="contextual-action-box" class="hidden p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 max-w-md mx-auto text-center space-y-2 animate-fade-in">
-            <!-- Inyectado dinámicamente según casilla donde caiga -->
-          </div>
-
+        <!-- Alerta de Turno Extra por Dobles -->
+        <div id="doubles-extra-badge" class="hidden inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700 animate-pulse">
+          <span>✨</span>
+          <span id="doubles-extra-text">¡Sacaste dobles!</span>
         </div>
-
-        <!-- Footer Central: Muelle de Jugadores en Mesa (Clicables para ver perfil) -->
-        <div class="pt-2 border-t border-slate-100 dark:border-slate-700/60">
-          <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1.5">
-            <span>Fichas en Mesa (Toca para ver perfil y escrituras):</span>
-            <span class="font-mono">Casilla actual</span>
-          </div>
-
-          <div id="hud-players-dock" class="flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar">
-            <!-- Inyectado dinámicamente con avatares de jugadores -->
-          </div>
-        </div>
-
       </div>
+
+      <!-- Estado de Sala, Ronda y Botón de Pasar Turno -->
+      <div class="flex items-center gap-2">
+        <div class="text-right pr-2 hidden sm:block">
+          <div class="flex items-center gap-1.5 justify-end">
+            <span class="text-xs font-heading font-extrabold text-slate-800 dark:text-white uppercase">{{ game.code }}</span>
+            <span id="game-status-badge" class="text-[9px] font-mono uppercase font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+              {{ game.status }}
+            </span>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono">Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong></span>
+        </div>
+
+        <button
+          id="advance-turn-btn"
+          type="button"
+          onclick="advanceTurn()"
+          class="py-2 px-3.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 dark:hover:bg-emerald-500 text-white dark:text-slate-900 hover:text-white dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1 active:scale-95 shadow-sm"
+          title="Pasar turno al siguiente jugador"
+        >
+          <span>Pasar Turno</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Panel de Control de Cárcel en HUD -->
+    <div id="jail-hud-controls" class="hidden max-w-lg mx-auto pt-1 animate-fade-in"></div>
+
+    <!-- Tarjeta de Acción Contextual por Casilla (1 Solo Toque) -->
+    <div id="contextual-action-box" class="hidden p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 max-w-lg mx-auto text-center space-y-2 animate-fade-in">
+      <!-- Inyectado dinámicamente según casilla donde caiga -->
+    </div>
+
+    <!-- Muelle Oculto de compatibilidad para listado rápido -->
+    <div id="hud-players-dock" class="hidden"></div>
+
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TABLERO VISUAL EN CIRCUITO M (11 COLUMNAS X 6 FILAS)                      -->
+  <!-- ========================================================================= -->
+  <div class="relative w-full max-w-[1240px] mx-auto bg-slate-200/80 dark:bg-slate-900/90 rounded-3xl p-2 sm:p-3 border-2 border-slate-300 dark:border-slate-700 shadow-2xl overflow-x-auto">
+    
+    <!-- Conector Visual Fila 1: Sentido de la pista hacia la Salida -->
+    <div class="min-w-[1020px] lg:min-w-0 w-full flex items-center justify-between px-3 py-1 mb-1.5 rounded-xl bg-slate-900/5 dark:bg-white/5 border border-slate-200/80 dark:border-slate-700/60 text-[10px] font-mono text-slate-500">
+      <div class="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+        <span class="text-xs">🚩</span>
+        <span>SALIDA (#0)</span>
+      </div>
+      <div class="flex items-center gap-2 font-mono font-bold text-slate-600 dark:text-slate-300">
+        <span class="animate-pulse text-emerald-500 font-extrabold">← ← ←</span>
+        <span class="tracking-wider uppercase text-[9px] sm:text-[10px]">Recta Superior de Retorno a Salida (+$200)</span>
+        <span class="animate-pulse text-emerald-500 font-extrabold">← ← ←</span>
+      </div>
+      <div class="flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400">
+        <span class="text-[9px]">VAYA A LA CÁRCEL (#30)</span>
+        <span class="text-xs">👮</span>
+      </div>
+    </div>
+
+    <div id="monopoly-board-grid" class="monopoly-board min-w-[1020px] lg:min-w-0 w-full relative">
+
+      <!-- ===================================================================== -->
+      <!-- POCKET 1: INSPECTOR DE CASILLA EN VIVO (FILA 2, COLS 2 A 6)           -->
+      <!-- ===================================================================== -->
+      <div
+        id="live-tile-inspector"
+        style="grid-column: 2 / 7; grid-row: 2;"
+        class="z-20 h-full w-full"
+      >
+        <!-- Inyectado dinámicamente con desglose de rentas, hipoteca y dueño -->
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- POCKET 2: PANEL RESUMEN DE JUGADORES (FILA 2, COLS 7 A 10)            -->
+      <!-- ===================================================================== -->
+      <div
+        id="players-summary-dock"
+        style="grid-column: 7 / 11; grid-row: 2;"
+        class="z-20 h-full w-full"
+      >
+        <!-- Inyectado dinámicamente con chips de grupos y datos de jugadores -->
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- POCKET 3: HUD TÁCTICO CENTRAL INFERIOR (FILA 6, COLS 4 A 8)            -->
+      <!-- ===================================================================== -->
+      <div
+        id="center-board-hud"
+        style="grid-column: 4 / 9; grid-row: 6;"
+        class="z-20 h-full w-full"
+      >
+        <!-- Inyectado dinámicamente con estado de turno y acciones de dados -->
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- CELDAS DE ESPACIO NEGATIVO (VALLES DEL CIRCUITO EN M)                 -->
+      <!-- ===================================================================== -->
+      <!-- Fila 3 -->
+      <div style="grid-column: 2; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 6; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 10; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+
+      <!-- Fila 4 -->
+      <div style="grid-column: 2; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 4; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 6; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 8; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 10; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+
+      <!-- Fila 5 -->
+      <div style="grid-column: 2; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 4; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 8; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+      <div style="grid-column: 10; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
+
+      <!-- Las 40 casillas (.board-tile) se inyectan dinámicamente en sus coordenadas exactas -->
 
     </div>
 
@@ -628,231 +682,336 @@
     { key: 'UTILITY', name: 'Servicios', hex: '#0E7490', icon: 'zap' },
   ];
 
-  // Mapeo Oficial de Casillas 0 a 39 en el Grid 11x11 de Monopoly
+  // Mapeo Oficial de Casillas 0 a 39 en el Circuito en M de 11x6
   const TILE_GRID_POSITIONS = {
-    // Fila 11 (Inferior): de derecha a izquierda (0 a 10)
-    0:  { row: 11, col: 11 }, // SALIDA
-    1:  { row: 11, col: 10 },
-    2:  { row: 11, col: 9 },
-    3:  { row: 11, col: 8 },
-    4:  { row: 11, col: 7 },
-    5:  { row: 11, col: 6 },
-    6:  { row: 11, col: 5 },
-    7:  { row: 11, col: 4 },
-    8:  { row: 11, col: 3 },
-    9:  { row: 11, col: 2 },
-    10: { row: 11, col: 1 },  // CÁRCEL
+    // 1. Baja de c1f1 a c1f6 (0 a 5)
+    0:  { col: 1,  row: 1 }, // SALIDA
+    1:  { col: 1,  row: 2 },
+    2:  { col: 1,  row: 3 },
+    3:  { col: 1,  row: 4 },
+    4:  { col: 1,  row: 5 },
+    5:  { col: 1,  row: 6 },
 
-    // Columna 1 (Izquierda): de abajo hacia arriba (11 a 19)
-    11: { row: 10, col: 1 },
-    12: { row: 9,  col: 1 },
-    13: { row: 8,  col: 1 },
-    14: { row: 7,  col: 1 },
-    15: { row: 6,  col: 1 },
-    16: { row: 5,  col: 1 },
-    17: { row: 4,  col: 1 },
-    18: { row: 3,  col: 1 },
-    19: { row: 2,  col: 1 },
-    20: { row: 1,  col: 1 },  // PARKING GRATUITO
+    // 2. Derecha de c2f6 a c3f6 (6 a 7)
+    6:  { col: 2,  row: 6 },
+    7:  { col: 3,  row: 6 },
 
-    // Fila 1 (Superior): de izquierda a derecha (21 a 29)
-    21: { row: 1,  col: 2 },
-    22: { row: 1,  col: 3 },
-    23: { row: 1,  col: 4 },
-    24: { row: 1,  col: 5 },
-    25: { row: 1,  col: 6 },
-    26: { row: 1,  col: 7 },
-    27: { row: 1,  col: 8 },
-    28: { row: 1,  col: 9 },
-    29: { row: 1,  col: 10 },
-    30: { row: 1,  col: 11 }, // VAYA A LA CÁRCEL
+    // 3. Sube de c3f5 a c3f3 (8 a 10)
+    8:  { col: 3,  row: 5 },
+    9:  { col: 3,  row: 4 },
+    10: { col: 3,  row: 3 }, // CÁRCEL
 
-    // Columna 11 (Derecha): de arriba hacia abajo (31 a 39)
-    31: { row: 2,  col: 11 },
-    32: { row: 3,  col: 11 },
-    33: { row: 4,  col: 11 },
-    34: { row: 5,  col: 11 },
-    35: { row: 6,  col: 11 },
-    36: { row: 7,  col: 11 },
-    37: { row: 8,  col: 11 },
-    38: { row: 9,  col: 11 },
-    39: { row: 10, col: 11 },
+    // 4. Derecha de c4f3 a c5f3 (11 a 12)
+    11: { col: 4,  row: 3 },
+    12: { col: 5,  row: 3 },
+
+    // 5. Baja de c5f4 a c5f5 (13 a 14)
+    13: { col: 5,  row: 4 },
+    14: { col: 5,  row: 5 },
+
+    // 6. Derecha de c6f5 a c7f5 (15 a 16)
+    15: { col: 6,  row: 5 },
+    16: { col: 7,  row: 5 },
+
+    // 7. Sube de c7f4 a c7f3 (17 a 18)
+    17: { col: 7,  row: 4 },
+    18: { col: 7,  row: 3 },
+
+    // 8. Derecha de c8f3 a c9f3 (19 a 20)
+    19: { col: 8,  row: 3 },
+    20: { col: 9,  row: 3 }, // PARKING GRATUITO
+
+    // 9. Baja de c9f4 a c9f6 (21 a 23)
+    21: { col: 9,  row: 4 },
+    22: { col: 9,  row: 5 },
+    23: { col: 9,  row: 6 },
+
+    // 10. Derecha de c10f6 a c11f6 (24 a 25)
+    24: { col: 10, row: 6 },
+    25: { col: 11, row: 6 },
+
+    // 11. Sube de c11f5 a c11f1 (26 a 30)
+    26: { col: 11, row: 5 },
+    27: { col: 11, row: 4 },
+    28: { col: 11, row: 3 },
+    29: { col: 11, row: 2 },
+    30: { col: 11, row: 1 }, // VAYA A LA CÁRCEL
+
+    // 12. Recta superior de retorno de c10f1 a c2f1 conectando hacia c1f1 (Salida) (31 a 39)
+    31: { col: 10, row: 1 },
+    32: { col: 9,  row: 1 },
+    33: { col: 8,  row: 1 },
+    34: { col: 7,  row: 1 },
+    35: { col: 6,  row: 1 },
+    36: { col: 5,  row: 1 },
+    37: { col: 4,  row: 1 },
+    38: { col: 3,  row: 1 },
+    39: { col: 2,  row: 1 }, // PASEO TABLADO (BOARDWALK - $400)
   };
 
-  function getActivePlayer() {
-    if (!playersData || playersData.length === 0 || !gameState) return null;
-    return playersData[gameState.current_player_index % playersData.length];
+  let pinnedTileId = null;
+
+  function updateTileInspector(tile, propState) {
+    if (pinnedTileId) return;
+    renderTileInspector(tile, propState);
   }
 
-  function getTokenEmoji(token) {
-    const map = {
-      'Sombrero': '🎩',
-      'Auto': '🚗',
-      'Perro': '🐕',
-      'Bota': '👞',
-      'Barco': '🚢',
-      'Gato': '🐱',
-    };
-    return map[token] || '🎮';
-  }
-
-  // ========================================================
-  // CARGA PRINCIPAL DE DATOS EN TIEMPO REAL
-  // ========================================================
-  async function refreshGameData() {
-    try {
-      const [gameRes, playersRes, tilesRes, propsRes, txRes] = await Promise.all([
-        fetch(`/api/v1/games/${GAME_ID}`),
-        fetch(`/api/v1/games/${GAME_ID}/players`),
-        fetch(`/api/v1/games/${GAME_ID}/board-tiles`),
-        fetch(`/api/v1/games/${GAME_ID}/properties`),
-        fetch(`/api/v1/games/${GAME_ID}/transactions`),
-      ]);
-
-      gameState = await gameRes.json();
-      playersData = await playersRes.json();
-      boardTiles = await tilesRes.json();
-      propertyStates = await propsRes.json();
-      transactionsData = await txRes.json();
-
-      renderVisualBoard();
-      renderCenterHUD();
-      renderLedger();
-
-      if (window.lucide) {
-        lucide.createIcons();
-      }
-    } catch (e) {
-      console.error('Error refrescando tablero:', e);
+  function resetTileInspector() {
+    if (pinnedTileId) return;
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+    const activeTile = boardTiles.find(t => t.position === activePlayer.position);
+    const activeProp = activeTile ? propertyStates.find(p => p.tile_id === activeTile.tile_id) : null;
+    if (activeTile) {
+      renderTileInspector(activeTile, activeProp);
     }
   }
 
-  // ========================================================
-  // RENDER: TABLERO VISUAL EN VIVO (PERÍMETRO DE 40 CASILLAS)
-  // ========================================================
-  function renderVisualBoard() {
-    const gridContainer = document.getElementById('monopoly-board-grid');
-    // Eliminar sólo las casillas existentes (manteniendo el contenedor central)
-    gridContainer.querySelectorAll('.board-tile').forEach(el => el.remove());
+  function selectTileInspector(tile, propState) {
+    if (pinnedTileId === tile.tile_id) {
+      pinnedTileId = null;
+      resetTileInspector();
+    } else {
+      pinnedTileId = tile.tile_id;
+      renderTileInspector(tile, propState);
+    }
+  }
+
+  function renderTileInspector(tile, propState) {
+    const inspector = document.getElementById('live-tile-inspector');
+    if (!inspector || !tile) return;
+
+    const grp = OFFICIAL_GROUPS.find(g => g.key === tile.group);
+    const colorHex = grp ? grp.hex : (tile.tile_type === 'TAX' ? '#EF4444' : '#64748B');
+    const groupName = grp ? grp.name : (tile.tile_type === 'TAX' ? 'Impuesto' : 'Especial');
+
+    let ownerName = 'Sin Dueño (Disponible)';
+    let ownerToken = '🟢';
+    let isOwned = false;
+    if (propState && propState.owner_id) {
+      const owner = playersData.find(p => p.id === propState.owner_id);
+      if (owner) {
+        ownerName = owner.name;
+        ownerToken = getTokenEmoji(owner.token);
+        isOwned = true;
+      }
+    }
+
+    let rentHtml = '';
+    if (tile.rent_matrix && tile.rent_matrix.length >= 6) {
+      rentHtml = `
+        <div class="flex items-center gap-1 text-[9px] font-mono overflow-x-auto no-scrollbar">
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60 font-semibold" title="Renta base">Base: $${tile.rent_matrix[0]}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60" title="1 casa">🏠1: $${tile.rent_matrix[1]}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60" title="2 casas">🏠2: $${tile.rent_matrix[2]}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60" title="3 casas">🏠3: $${tile.rent_matrix[3]}</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700/60" title="4 casas">🏠4: $${tile.rent_matrix[4]}</span>
+          <span class="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold" title="Hotel">🏨: $${tile.rent_matrix[5]}</span>
+          <span class="text-slate-400 ml-1 text-[8px] whitespace-nowrap">($${tile.house_cost}/casa)</span>
+        </div>
+      `;
+    } else if (tile.tile_type === 'RAILROAD') {
+      rentHtml = `
+        <div class="flex items-center gap-1.5 text-[9px] font-mono text-slate-600 dark:text-slate-300">
+          <span class="font-bold">Trenes:</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700">1: $25</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700">2: $50</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700">3: $100</span>
+          <span class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700">4: $200</span>
+        </div>
+      `;
+    } else if (tile.tile_type === 'UTILITY') {
+      rentHtml = `
+        <div class="text-[9px] font-mono text-slate-600 dark:text-slate-300">
+          <span>Servicios: 1 posesión = <strong>4x dados</strong> • 2 posesiones = <strong>10x dados</strong></span>
+        </div>
+      `;
+    } else {
+      let desc = 'Casilla neutral del tablero.';
+      if (tile.position === 0) desc = '🚩 Salida: cobra $200 cada vez que pases o caigas aquí.';
+      else if (tile.position === 10) desc = '⛓️ Cárcel: visitas regulares; si estás preso paga $50 o saca dobles.';
+      else if (tile.position === 20) desc = '🚗 Parking Gratuito: zona neutral sin costo.';
+      else if (tile.position === 30) desc = '👮 Ve directo a la Cárcel sin pasar por Salida.';
+      else if (tile.tile_type === 'TAX') desc = `🏛️ Paga $${tile.price} de impuesto al banco.`;
+      else if (tile.tile_type === 'CHANCE' || tile.tile_type === 'COMMUNITY_CHEST') desc = '🎴 Toma una carta y sigue sus instrucciones.';
+      rentHtml = `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">${desc}</span>`;
+    }
+
+    const mortgageVal = tile.price ? Math.floor(tile.price / 2) : 0;
+
+    inspector.innerHTML = `
+      <div class="h-full w-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-2 sm:p-2.5 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col justify-between overflow-hidden">
+        <!-- Header Inspector -->
+        <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-1">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <div style="background-color: ${colorHex};" class="w-3 h-3 rounded-full shrink-0 shadow-xs"></div>
+            <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate" title="${tile.name}">
+              ${tile.name}
+            </span>
+            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+              #${tile.position}
+            </span>
+            <span class="text-[9px] font-heading font-semibold text-slate-400 hidden sm:inline">
+              ${groupName}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0 text-[10px] font-mono">
+            ${tile.price ? `<span class="font-bold text-slate-700 dark:text-slate-200">Precio: <strong class="text-emerald-600 dark:text-emerald-400">$${tile.price}</strong></span>` : ''}
+            ${mortgageVal ? `<span class="text-slate-400 hidden md:inline">Hipoteca: $${mortgageVal}</span>` : ''}
+            <div class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${isOwned ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 cursor-pointer hover:bg-slate-200' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-semibold'}" ${isOwned ? `onclick="openPlayerProfile(${propState.owner_id})"` : ''} title="${isOwned ? 'Ver perfil de ' + ownerName : 'Propiedad disponible'}">
+              <span>${ownerToken}</span>
+              <span class="truncate max-w-[85px]">${ownerName}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rentas y Detalles -->
+        <div class="pt-1 flex items-center justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            ${rentHtml}
+          </div>
+          <span class="text-[8px] font-mono text-slate-400 uppercase tracking-widest pl-1 shrink-0 hidden sm:inline">
+            Inspector
+          </span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPlayersSummaryDock() {
+    const dock = document.getElementById('players-summary-dock');
+    if (!dock || !playersData) return;
 
     const activePlayer = getActivePlayer();
 
-    boardTiles.forEach(tile => {
-      const pos = tile.position;
-      const coords = TILE_GRID_POSITIONS[pos];
-      if (!coords) return;
+    dock.innerHTML = `
+      <div class="h-full w-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-2 sm:p-2.5 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex flex-col justify-between overflow-hidden">
+        <div class="flex items-center justify-between text-[10px] border-b border-slate-100 dark:border-slate-700/60 pb-1">
+          <span class="font-heading font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1">
+            <span>👥</span> Jugadores (${playersData.length})
+          </span>
+          <span class="text-[9px] font-mono text-slate-400">Toca para ver escrituras</span>
+        </div>
 
-      const tileEl = document.createElement('div');
-      tileEl.id = `tile-pos-${pos}`;
-      tileEl.style.gridRow = coords.row;
-      tileEl.style.gridColumn = coords.col;
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+          ${playersData.map(p => {
+            const isActive = activePlayer && p.id === activePlayer.id;
+            const ownedProps = propertyStates.filter(pr => pr.owner_id === p.id);
+            
+            const ownedGroups = [...new Set(ownedProps.map(pr => {
+              const t = boardTiles.find(tile => tile.tile_id === pr.tile_id);
+              return t ? t.group : null;
+            }).filter(Boolean))];
 
-      const isCorner = (pos === 0 || pos === 10 || pos === 20 || pos === 30);
-      const grp = OFFICIAL_GROUPS.find(g => g.key === tile.group);
-      const propState = propertyStates.find(p => p.tile_id === tile.tile_id);
-      
-      // Propietario si aplica
-      let ownerBadgeHtml = '';
-      if (propState && propState.owner_id) {
-        const owner = playersData.find(p => p.id === propState.owner_id);
-        if (owner) {
-          ownerBadgeHtml = `<span class="inline-block text-[8px] font-mono leading-none bg-slate-900/80 dark:bg-slate-100/90 text-white dark:text-slate-900 px-1 py-0.5 rounded" title="Dueño: ${owner.name}">${getTokenEmoji(owner.token)}</span>`;
-        }
-      }
+            const groupChips = ownedGroups.map(grpKey => {
+              const grp = OFFICIAL_GROUPS.find(g => g.key === grpKey);
+              return grp ? `<span style="background-color: ${grp.hex};" class="w-1.5 h-1.5 rounded-full inline-block" title="${grp.name}"></span>` : '';
+            }).join('');
 
-      // Mejoras (casas / hotel)
-      let buildingHtml = '';
-      if (propState && propState.hotels_count > 0) {
-        buildingHtml = '<span class="text-[8px] leading-none" title="Hotel">🏨</span>';
-      } else if (propState && propState.houses_count > 0) {
-        buildingHtml = `<span class="text-[8px] font-bold text-emerald-600 leading-none" title="${propState.houses_count} casas">🏠${propState.houses_count}</span>`;
-      }
+            return `
+              <button
+                type="button"
+                onclick="openPlayerProfile(${p.id})"
+                class="flex items-center gap-1.5 px-2 py-0.5 rounded-xl border text-left shrink-0 transition-all ${
+                  isActive
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 dark:text-emerald-200'
+                    : 'bg-slate-50/80 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }"
+                title="${p.name} ($${p.money.toLocaleString()}) - ${ownedProps.length} propiedades"
+              >
+                <span class="text-base">${getTokenEmoji(p.token)}</span>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1">
+                    <span class="text-[9px] font-heading font-extrabold truncate max-w-[55px]">${p.name}</span>
+                    ${isActive ? '<span class="text-[7px] font-mono font-bold px-1 rounded bg-emerald-500 text-white leading-none">TURNO</span>' : ''}
+                  </div>
+                  <div class="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>$${p.money.toLocaleString()}</span>
+                    <div class="flex items-center gap-0.5 ml-0.5">
+                      ${groupChips || '<span class="text-[7px] font-normal text-slate-400">0</span>'}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
 
-      // Jugadores parados en esta casilla
-      const playersOnTile = playersData.filter(p => p.position === pos);
-      let tokensHtml = '';
-      if (playersOnTile.length > 0) {
-        tokensHtml = playersOnTile.map(p => {
-          const isActive = activePlayer && p.id === activePlayer.id;
-          return `
+  function renderCenterBoardHUD() {
+    const hud = document.getElementById('center-board-hud');
+    if (!hud || !gameState) return;
+
+    const activePlayer = getActivePlayer();
+    if (!activePlayer) return;
+
+    hud.innerHTML = `
+      <div class="h-full w-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-2 sm:p-2.5 border border-slate-200/90 dark:border-slate-700/80 shadow-sm flex items-center justify-between gap-2 overflow-hidden">
+        <!-- Turno Activo -->
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-xl sm:text-2xl">${getTokenEmoji(activePlayer.token)}</span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1">
+              <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate">${activePlayer.name}</span>
+              <span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">$${activePlayer.money.toLocaleString()}</span>
+            </div>
+            <span class="text-[9px] text-slate-500 dark:text-slate-400 font-mono block truncate">
+              Ronda #${gameState.current_turn} • ${activePlayer.in_jail ? '⛓️ En Prisión' : 'Casilla #' + activePlayer.position}
+            </span>
+          </div>
+        </div>
+
+        <!-- Acciones Rápidas en Tablero -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          ${!activePlayer.in_jail ? `
             <button
               type="button"
-              onclick="openPlayerProfile(${p.id}); event.stopPropagation();"
-              class="relative inline-flex items-center justify-center text-xs sm:text-sm transition-transform hover:scale-130 cursor-pointer ${
-                isActive
-                  ? 'active-token-pulse bg-emerald-500/30 rounded-full p-0.5 ring-2 ring-emerald-500 shadow-md'
-                  : 'hover:opacity-100 opacity-90'
+              onclick="handleRollDiceClick()"
+              ${gameState.has_rolled_dice ? 'disabled' : ''}
+              class="py-1 px-2.5 rounded-lg font-heading font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center gap-1 ${
+                gameState.has_rolled_dice
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs'
               }"
-              title="${p.name} ($${p.money.toLocaleString()}) ${isActive ? '• ¡Es su turno!' : ''}"
             >
-              <span>${getTokenEmoji(p.token)}</span>
-              ${isActive ? '<span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500"></span>' : ''}
+              <i data-lucide="dices" class="w-3.5 h-3.5"></i>
+              <span>${gameState.has_rolled_dice ? 'Lanzados' : 'Tirar'}</span>
             </button>
-          `;
-        }).join('');
-      }
+          ` : `
+            <button
+              type="button"
+              onclick="executeJailAction('PAY_FINE')"
+              class="py-1 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-[10px]"
+            >
+              <span>⚖️ Pagar $50</span>
+            </button>
+          `}
 
-      // Estilo de Casilla: Esquina vs Calle
-      if (isCorner) {
-        let cornerTitle = '';
-        let cornerIcon = '';
-        let cornerBg = 'bg-white/80 dark:bg-slate-800/80';
-        if (pos === 0) { cornerTitle = 'SALIDA'; cornerIcon = '🚩'; cornerBg = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'; }
-        else if (pos === 10) { cornerTitle = 'CÁRCEL'; cornerIcon = '⛓️'; cornerBg = 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800'; }
-        else if (pos === 20) { cornerTitle = 'PARKING'; cornerIcon = '🚗'; }
-        else if (pos === 30) { cornerTitle = 'CÁRCEL'; cornerIcon = '👮'; cornerBg = 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800'; }
+          <button
+            type="button"
+            onclick="advanceTurn()"
+            class="py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-heading font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center gap-1 active:scale-95"
+            title="Pasar turno al siguiente jugador"
+          >
+            <span>Pasar</span>
+            <i data-lucide="chevron-right" class="w-3 h-3"></i>
+          </button>
 
-        tileEl.className = `board-tile ${cornerBg} rounded-xl border border-slate-200/90 dark:border-slate-700/80 p-1 flex flex-col justify-between items-center text-center overflow-hidden cursor-pointer`;
-        tileEl.innerHTML = `
-          <div class="text-xs sm:text-sm mt-0.5">${cornerIcon}</div>
-          <span class="text-[8px] sm:text-[9px] font-heading font-extrabold uppercase tracking-tight text-slate-800 dark:text-slate-100 leading-tight">
-            ${cornerTitle}
-          </span>
-          <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[18px] w-full">
-            ${tokensHtml}
-          </div>
-        `;
-      } else {
-        // Casilla Lateral Normal
-        tileEl.className = `board-tile bg-white/90 dark:bg-slate-800/90 rounded-lg sm:rounded-xl border border-slate-200/90 dark:border-slate-700/80 p-1 flex flex-col justify-between overflow-hidden cursor-pointer hover:border-emerald-400`;
-        
-        let colorBarHtml = '';
-        if (grp) {
-          colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-1.5 sm:h-2 w-full rounded-t-sm shrink-0"></div>`;
-        } else {
-          colorBarHtml = `<div class="h-1 sm:h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-t-sm shrink-0"></div>`;
-        }
-
-        tileEl.innerHTML = `
-          ${colorBarHtml}
-          <div class="px-0.5 py-0.5 flex flex-col justify-between flex-1 min-h-0">
-            <div class="flex items-center justify-between gap-0.5">
-              <span class="text-[7px] sm:text-[9px] font-heading font-bold text-slate-800 dark:text-slate-200 truncate leading-tight" title="${tile.name}">
-                ${tile.name}
-              </span>
-              ${buildingHtml || ownerBadgeHtml}
-            </div>
-
-            <div class="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-slate-400 dark:text-slate-500">
-              <span>#${pos}</span>
-              ${tile.price ? `<span class="font-bold text-slate-600 dark:text-slate-300">$${tile.price}</span>` : ''}
-            </div>
-
-            <!-- Fichas de jugadores parados en la casilla -->
-            <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[16px] sm:min-h-[18px] w-full mt-auto">
-              ${tokensHtml}
-            </div>
-          </div>
-        `;
-      }
-
-      // Al hacer clic en la casilla, abre detalles rápidos
-      tileEl.onclick = () => {
-        handleTileClick(tile, propState);
-      };
-
-      gridContainer.appendChild(tileEl);
-    });
+          <button
+            type="button"
+            onclick="openActiveTurnModal()"
+            class="p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold"
+            title="Menú Táctico (Construir, Hipotecas, Banca)"
+          >
+            <i data-lucide="sliders" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>
+          </button>
+        </div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
   }
 
   // ========================================================
@@ -984,28 +1143,34 @@
       }
     }
 
-    // Muelle de jugadores en el pie del HUD
+    // Refrescar componentes tácticos empotrados
+    renderCenterBoardHUD();
+    renderPlayersSummaryDock();
+
+    // Muelle de jugadores en el pie del HUD (compatibilidad)
     const dockContainer = document.getElementById('hud-players-dock');
-    dockContainer.innerHTML = playersData.map((p, idx) => {
-      const isActive = p.id === activePlayer.id;
-      const t = boardTiles.find(tile => tile.position === p.position);
-      return `
-        <button
-          type="button"
-          onclick="openPlayerProfile(${p.id})"
-          class="flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs transition-all border ${
-            isActive
-              ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/20 font-bold shadow-xs'
-              : 'bg-white dark:bg-slate-700/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
-          }"
-          title="Toca para ver la cartera de propiedades de ${p.name}"
-        >
-          <span class="text-base">${getTokenEmoji(p.token)}</span>
-          <span class="truncate max-w-[70px]">${p.name}</span>
-          <span class="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400">$${p.money.toLocaleString()}</span>
-        </button>
-      `;
-    }).join('');
+    if (dockContainer) {
+      dockContainer.innerHTML = playersData.map((p, idx) => {
+        const isActive = p.id === activePlayer.id;
+        const t = boardTiles.find(tile => tile.position === p.position);
+        return `
+          <button
+            type="button"
+            onclick="openPlayerProfile(${p.id})"
+            class="flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs transition-all border ${
+              isActive
+                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/20 font-bold shadow-xs'
+                : 'bg-white dark:bg-slate-700/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
+            }"
+            title="Toca para ver la cartera de propiedades de ${p.name}"
+          >
+            <span class="text-base">${getTokenEmoji(p.token)}</span>
+            <span class="truncate max-w-[70px]">${p.name}</span>
+            <span class="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400">$${p.money.toLocaleString()}</span>
+          </button>
+        `;
+      }).join('');
+    }
   }
 
   // ========================================================
