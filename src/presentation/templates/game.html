@@ -1396,8 +1396,9 @@
       else if (tile.position === 10) desc = '⛓️ Cárcel: visitas regulares; si estás preso paga $50 o saca dobles.';
       else if (tile.position === 20) desc = '🚗 Parking Gratuito: zona neutral sin costo.';
       else if (tile.position === 30) desc = '👮 Ve directo a la Cárcel sin pasar por Salida.';
-      else if (tile.tile_type === 'TAX') desc = `🏛️ Paga $${tile.price} de impuesto al banco.`;
-      else if (tile.tile_type === 'CHANCE' || tile.tile_type === 'COMMUNITY_CHEST') desc = '🎴 Toma una carta y sigue sus instrucciones.';
+      else if (tile.tile_type === 'TAX' || [4, 38].includes(tile.position)) desc = `🏛️ Paga $${tile.price || (tile.position === 4 ? 200 : 100)} de impuesto oficial al banco.`;
+      else if (tile.tile_type === 'COMMUNITY_CHEST' || [2, 17, 33].includes(tile.position)) desc = '🧰 Caja de Comunidad: toma una carta física y ajusta banca con las opciones en pantalla.';
+      else if (tile.tile_type === 'CHANCE' || [7, 22, 36].includes(tile.position)) desc = '❓ Suerte: toma una carta física y ajusta banca con las opciones en pantalla.';
       rentHtml = `<span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">${desc}</span>`;
     }
 
@@ -1833,43 +1834,103 @@
           </div>
         `;
       } else {
-        // Casilla Lateral Normal: Banda superior limpia al ras sin margen blanco
-        tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between overflow-hidden cursor-pointer hover:border-emerald-400 shadow-xs select-none`;
-        
-        let colorBarHtml = '';
-        if (grp) {
-          colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-2.5 w-full shrink-0"></div>`;
-        } else if (tile.tile_type === 'TAX') {
-          colorBarHtml = `<div class="h-2 w-full bg-red-400 shrink-0"></div>`;
-        } else if (tile.tile_type === 'RAILROAD') {
-          colorBarHtml = `<div class="h-2 w-full bg-slate-600 dark:bg-slate-400 shrink-0"></div>`;
-        } else if (tile.tile_type === 'UTILITY') {
-          colorBarHtml = `<div class="h-2 w-full bg-cyan-500 shrink-0"></div>`;
-        } else {
-          colorBarHtml = `<div class="h-2 w-full bg-slate-300 dark:bg-slate-600 shrink-0"></div>`;
-        }
+        const isCommunityChest = (pos === 2 || pos === 17 || pos === 33 || tile.tile_type === 'COMMUNITY_CHEST' || /comunidad|caja|arca/i.test(tile.name));
+        const isChance = (pos === 7 || pos === 22 || pos === 36 || tile.tile_type === 'CHANCE' || /suerte|chance/i.test(tile.name));
+        const isTax = (pos === 4 || pos === 38 || tile.tile_type === 'TAX' || /impuesto/i.test(tile.name));
 
-        tileEl.innerHTML = `
-          ${colorBarHtml}
-          <div class="p-1 sm:p-1.5 flex flex-col justify-between flex-1 min-h-0">
-            <div class="flex items-center justify-between gap-0.5">
-              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 truncate leading-tight" title="${tile.name}">
-                ${tile.name}
+        if (isCommunityChest) {
+          // 1. Caja de la Comunidad (3 casillas) - Sin franja de color superior, ícono de cofre
+          tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-sky-200 dark:border-sky-800/80 hover:border-sky-400 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xs select-none p-1 sm:p-1.5`;
+          tileEl.innerHTML = `
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs sm:text-sm">🧰</span>
+              <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
+            </div>
+            <div class="my-auto text-center leading-tight">
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-sky-800 dark:text-sky-300 block uppercase">
+                Caja Comunidad
               </span>
-              <span class="shrink-0">${buildingHtml || ownerBadgeHtml}</span>
+              <span class="text-[7px] font-mono text-slate-400 block mt-0.5">Carta</span>
             </div>
-
-            <div class="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-slate-400 dark:text-slate-400">
-              <span class="font-bold">#${pos}</span>
-              ${tile.price ? `<span class="font-bold text-slate-700 dark:text-slate-200">$${tile.price}</span>` : ''}
-            </div>
-
-            <!-- Fichas de jugadores parados en la casilla -->
             <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[16px] w-full mt-auto">
               ${tokensHtml}
             </div>
-          </div>
-        `;
+          `;
+        } else if (isChance) {
+          // 2. Suerte (3 casillas) - Sin franja de color superior, signo de interrogación
+          tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-amber-200 dark:border-amber-800/80 hover:border-amber-400 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xs select-none p-1 sm:p-1.5`;
+          tileEl.innerHTML = `
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs sm:text-sm font-black text-amber-500 font-mono">❓</span>
+              <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
+            </div>
+            <div class="my-auto text-center leading-tight">
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-amber-800 dark:text-amber-300 block uppercase">
+                Suerte
+              </span>
+              <span class="text-[7px] font-mono text-slate-400 block mt-0.5">Carta</span>
+            </div>
+            <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[16px] w-full mt-auto">
+              ${tokensHtml}
+            </div>
+          `;
+        } else if (isTax) {
+          // 3. Impuestos (2 casillas: #4 y #38) - Limpias y sin franja de color superior
+          tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-red-400 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xs select-none p-1 sm:p-1.5`;
+          const taxName = pos === 4 ? 'Ingresos' : 'Lujo';
+          const taxIcon = pos === 4 ? '🏛️' : '💍';
+          tileEl.innerHTML = `
+            <div class="flex items-center justify-between w-full">
+              <span class="text-xs sm:text-sm">${taxIcon}</span>
+              <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
+            </div>
+            <div class="my-auto text-center leading-tight">
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 block uppercase truncate" title="${tile.name}">
+                Impuesto ${taxName}
+              </span>
+              <span class="text-[8px] font-mono font-black text-red-600 dark:text-red-400 block mt-0.5">-$${tile.price || (pos === 4 ? 200 : 100)}</span>
+            </div>
+            <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[16px] w-full mt-auto">
+              ${tokensHtml}
+            </div>
+          `;
+        } else {
+          // Casillas de Propiedades (Calles, Estaciones, Servicios) con franja superior oficial
+          tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between overflow-hidden cursor-pointer hover:border-emerald-400 shadow-xs select-none`;
+          
+          let colorBarHtml = '';
+          if (tile.tile_type === 'STREET' && grp) {
+            colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-2.5 w-full shrink-0"></div>`;
+          } else if (tile.tile_type === 'RAILROAD') {
+            colorBarHtml = `<div class="h-2 w-full bg-slate-700 dark:bg-slate-500 shrink-0"></div>`;
+          } else if (tile.tile_type === 'UTILITY') {
+            colorBarHtml = `<div class="h-2 w-full bg-cyan-600 shrink-0"></div>`;
+          } else if (grp) {
+            colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-2.5 w-full shrink-0"></div>`;
+          }
+
+          tileEl.innerHTML = `
+            ${colorBarHtml}
+            <div class="p-1 sm:p-1.5 flex flex-col justify-between flex-1 min-h-0">
+              <div class="flex items-center justify-between gap-0.5">
+                <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 truncate leading-tight" title="${tile.name}">
+                  ${tile.name}
+                </span>
+                <span class="shrink-0">${buildingHtml || ownerBadgeHtml}</span>
+              </div>
+
+              <div class="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-slate-400 dark:text-slate-400">
+                <span class="font-bold">#${pos}</span>
+                ${tile.price ? `<span class="font-bold text-slate-700 dark:text-slate-200">$${tile.price}</span>` : ''}
+              </div>
+
+              <!-- Fichas de jugadores parados en la casilla -->
+              <div class="tile-tokens flex flex-wrap items-center justify-center gap-0.5 min-h-[16px] w-full mt-auto">
+                ${tokensHtml}
+              </div>
+            </div>
+          `;
+        }
       }
 
       gridContainer.appendChild(tileEl);
@@ -2779,8 +2840,24 @@
         </div>
       `;
       if (landedModal) landedModal.classList.remove('hidden');
-    } else if (rollData.action_required === 'DRAW_CHANCE' || rollData.action_required === 'DRAW_COMMUNITY_CHEST') {
-      renderFlexibleBankCard(rollData.landed_tile_name, rollData.action_required === 'DRAW_CHANCE');
+    } else if (
+      rollData.action_required === 'CHANCE_OR_COMMUNITY' ||
+      rollData.action_required === 'DRAW_CHANCE' ||
+      rollData.action_required === 'DRAW_COMMUNITY_CHEST' ||
+      rollData.action_required === 'CHANCE' ||
+      rollData.action_required === 'COMMUNITY_CHEST' ||
+      rollData.landed_tile_type === 'CHANCE' ||
+      rollData.landed_tile_type === 'COMMUNITY_CHEST' ||
+      [2, 7, 17, 22, 33, 36].includes(rollData.new_position) ||
+      /suerte|chance|caja|comunidad|arca/i.test(rollData.landed_tile_name || '')
+    ) {
+      const isChance = (
+        rollData.landed_tile_type === 'CHANCE' ||
+        rollData.action_details?.tile_type === 'CHANCE' ||
+        [7, 22, 36].includes(rollData.new_position) ||
+        /suerte|chance/i.test(rollData.landed_tile_name || '')
+      );
+      renderFlexibleBankCard(rollData.landed_tile_name, isChance);
     } else {
       content.innerHTML = `
         <div class="space-y-3">
@@ -2841,23 +2918,23 @@
       <div class="space-y-3.5 text-left">
         <div class="text-center">
           <div class="w-12 h-12 rounded-2xl ${isChance ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-600' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-600'} mx-auto flex items-center justify-center text-2xl shadow-xs">
-            ${isChance ? '🎴' : '📦'}
+            ${isChance ? '❓' : '🧰'}
           </div>
           <span class="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider">${tileName}</span>
           <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">
-            ${isChance ? 'Tarjeta de Suerte' : 'Caja de Comunidad'}
+            ${isChance ? 'Tarjeta de Suerte' : 'Caja de la Comunidad'}
           </h3>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ajuste de Banca según tu carta física en mesa</p>
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Dirección del Dinero:</label>
+          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Dirección:</label>
           <div class="grid grid-cols-2 gap-2">
             <button
               type="button"
               id="flex-bank-dir-credit"
               onclick="setFlexibleBankDir('CREDIT')"
-              class="py-2 px-3 rounded-xl text-xs font-heading font-bold border transition-all flex items-center justify-center gap-1.5 bg-emerald-600 text-white border-transparent shadow-xs"
+              class="py-2 px-3 rounded-xl text-xs font-heading font-bold border transition-all flex items-center justify-center gap-1.5 bg-emerald-600 text-white border-transparent shadow-xs cursor-pointer"
             >
               <span>+ Banco paga ($)</span>
             </button>
@@ -2865,7 +2942,7 @@
               type="button"
               id="flex-bank-dir-debit"
               onclick="setFlexibleBankDir('DEBIT')"
-              class="py-2 px-3 rounded-xl text-xs font-heading font-bold border transition-all flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+              class="py-2 px-3 rounded-xl text-xs font-heading font-bold border transition-all flex items-center justify-center gap-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
             >
               <span>- Jugador paga ($)</span>
             </button>
@@ -2873,7 +2950,7 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Monto a Ajustar ($):</label>
+          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Monto ($):</label>
           <input
             id="flex-bank-amount"
             type="number"
@@ -2886,7 +2963,7 @@
               <button
                 type="button"
                 onclick="document.getElementById('flex-bank-amount').value = ${val};"
-                class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200"
+                class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 $${val}
               </button>
@@ -2895,7 +2972,7 @@
         </div>
 
         <div class="space-y-1">
-          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Motivo / Descripción (opcional):</label>
+          <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Descripción (opcional):</label>
           <input
             id="flex-bank-desc"
             type="text"
@@ -2908,16 +2985,17 @@
           <button
             type="button"
             onclick="submitFlexibleBankAction('${tileName}')"
-            class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/30"
+            class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/30 cursor-pointer"
           >
             Confirmar Ajuste y Pasar Turno
           </button>
           <button
             type="button"
             onclick="dismissContextualAction(); advanceTurn();"
-            class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors text-center"
+            class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors text-center cursor-pointer"
+            title="Pasar turno sin ajustar efectivo (para cartas físicas de efectos especiales)"
           >
-            Pasar Turno sin Ajuste
+            Pasar
           </button>
         </div>
       </div>
