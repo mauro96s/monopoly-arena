@@ -42,12 +42,12 @@
 
   /* Animación de giro de dados */
   .dice-rolling {
-    animation: rollDiceAnim 0.4s ease-out;
+    animation: rollDiceAnim 0.3s ease-in-out infinite;
   }
   @keyframes rollDiceAnim {
-    0% { transform: rotate(0deg) scale(0.9); }
-    50% { transform: rotate(180deg) scale(1.15); }
-    100% { transform: rotate(360deg) scale(1); }
+    0% { transform: rotate(0deg) scale(0.95); }
+    50% { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(0.95); }
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -699,6 +699,60 @@
   let diceMode = 'AUTO';
   let isPaused = true;
   let pendingLandedRollData = null;
+  let diceRollTimer = null;
+  let diceAnimInterval = null;
+
+  function resetDiceDisplay() {
+    if (diceRollTimer) {
+      clearTimeout(diceRollTimer);
+      diceRollTimer = null;
+    }
+    if (diceAnimInterval) {
+      clearInterval(diceAnimInterval);
+      diceAnimInterval = null;
+    }
+    isRolling = false;
+
+    const dice1El = document.getElementById('dice-box-1');
+    const dice2El = document.getElementById('dice-box-2');
+    const sumBadge = document.getElementById('dice-sum-badge');
+    if (dice1El) {
+      dice1El.classList.remove('dice-rolling');
+      dice1El.textContent = '-';
+    }
+    if (dice2El) {
+      dice2El.classList.remove('dice-rolling');
+      dice2El.textContent = '-';
+    }
+    if (sumBadge) {
+      sumBadge.textContent = '= ?';
+    }
+
+    const d1Inp = document.getElementById('manual-die-1');
+    const d2Inp = document.getElementById('manual-die-2');
+    const mSumBadge = document.getElementById('manual-dice-sum-badge');
+    if (d1Inp) d1Inp.value = '';
+    if (d2Inp) d2Inp.value = '';
+    if (mSumBadge) {
+      mSumBadge.textContent = '= ?';
+      mSumBadge.className = 'font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+    }
+
+    const btnRoll = document.getElementById('btn-roll-dice');
+    const btnRollText = document.getElementById('btn-roll-dice-text');
+    const btnManual = document.getElementById('btn-manual-roll');
+    if (btnRoll && (!gameState || !gameState.has_rolled_dice)) {
+      btnRoll.disabled = false;
+      btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
+    }
+    if (btnRollText && (!gameState || !gameState.has_rolled_dice)) {
+      btnRollText.textContent = 'Tirar Dados y Avanzar';
+    }
+    if (btnManual && (!gameState || !gameState.has_rolled_dice)) {
+      btnManual.disabled = false;
+      btnManual.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
+    }
+  }
 
   function setDiceMode(mode) {
     diceMode = mode;
@@ -746,6 +800,9 @@
   function openTurnModal() {
     const modal = document.getElementById('turn-action-modal');
     if (!modal) return;
+    if (!gameState || !gameState.has_rolled_dice) {
+      resetDiceDisplay();
+    }
     syncTurnModal();
     modal.classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
@@ -801,10 +858,18 @@
   function closeTurnModal() {
     const modal = document.getElementById('turn-action-modal');
     if (modal) modal.classList.add('hidden');
+    if (diceAnimInterval) {
+      clearInterval(diceAnimInterval);
+      diceAnimInterval = null;
+    }
   }
 
   function pauseAndCloseTurnModal() {
     closeTurnModal();
+    if (diceRollTimer) {
+      clearTimeout(diceRollTimer);
+      diceRollTimer = null;
+    }
     // Solo cuando el usuario pulsa 'X' para inspeccionar el tablero se pausa la partida
     isPaused = true;
     updatePlayPauseUI();
@@ -1607,6 +1672,9 @@
         if (d2Inp) d2Inp.disabled = true;
         if (doublesExtraBadge) doublesExtraBadge.classList.add('hidden');
       } else {
+        if (!isRolling) {
+          resetDiceDisplay();
+        }
         if (btnRoll) {
           btnRoll.disabled = false;
           btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
@@ -1764,15 +1832,35 @@
 
     isPaused = false;
     updatePlayPauseUI();
-    closeTurnModal();
 
     isRolling = true;
     const dice1El = document.getElementById('dice-box-1');
     const dice2El = document.getElementById('dice-box-2');
+    const sumBadge = document.getElementById('dice-sum-badge');
+    const btnRoll = document.getElementById('btn-roll-dice');
+    const btnRollText = document.getElementById('btn-roll-dice-text');
+    const btnManual = document.getElementById('btn-manual-roll');
+
+    if (btnRoll) {
+      btnRoll.disabled = true;
+      btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-700/80 text-white font-heading font-extrabold text-sm uppercase tracking-wider cursor-wait flex items-center justify-center gap-2';
+    }
+    if (btnRollText) btnRollText.textContent = 'Lanzando dados...';
+    if (btnManual) btnManual.disabled = true;
+
     if (dice1El) dice1El.classList.add('dice-rolling');
     if (dice2El) dice2El.classList.add('dice-rolling');
+    if (sumBadge) sumBadge.textContent = '...';
+
+    // Animación de caras aleatorias visibles mientras ruedan los dados
+    if (diceAnimInterval) clearInterval(diceAnimInterval);
+    diceAnimInterval = setInterval(() => {
+      if (dice1El) dice1El.textContent = Math.floor(Math.random() * 6) + 1;
+      if (dice2El) dice2El.textContent = Math.floor(Math.random() * 6) + 1;
+    }, 70);
 
     const fromPos = activePlayer.position;
+    const startTime = Date.now();
 
     try {
       const payload = { player_id: activePlayer.id };
@@ -1795,6 +1883,22 @@
 
       const rollData = await res.json();
 
+      // Garantizar que la animación de rodar dure perceptiblemente ~750ms
+      const elapsed = Date.now() - startTime;
+      const minRollDuration = 750;
+      if (elapsed < minRollDuration) {
+        await new Promise(resolve => {
+          diceRollTimer = setTimeout(resolve, minRollDuration - elapsed);
+        });
+        diceRollTimer = null;
+      }
+
+      if (diceAnimInterval) {
+        clearInterval(diceAnimInterval);
+        diceAnimInterval = null;
+      }
+
+      // Mostrar caras definitivas y suma en el modal
       if (dice1El) {
         dice1El.classList.remove('dice-rolling');
         dice1El.textContent = getDiceFace(rollData.dice_1);
@@ -1803,9 +1907,14 @@
         dice2El.classList.remove('dice-rolling');
         dice2El.textContent = getDiceFace(rollData.dice_2);
       }
-      const sumBadge = document.getElementById('dice-sum-badge');
-      if (sumBadge) sumBadge.textContent = `= ${rollData.total_roll}`;
-      isRolling = false;
+      if (sumBadge) {
+        sumBadge.textContent = `= ${rollData.total_roll}`;
+      }
+
+      const mSumBadge = document.getElementById('manual-dice-sum-badge');
+      if (mSumBadge && d1 !== null && d2 !== null) {
+        mSumBadge.textContent = `= ${rollData.total_roll}`;
+      }
 
       // Limpiar inputs manuales si se utilizaron
       const d1Input = document.getElementById('manual-die-1');
@@ -1813,15 +1922,24 @@
       if (d1Input && d2Input) {
         d1Input.value = '';
         d2Input.value = '';
-        onManualDiceInputChanged();
       }
+
+      // Pausa de lectura de ~600ms con el modal abierto para ver el resultado claramente
+      await new Promise(resolve => {
+        diceRollTimer = setTimeout(resolve, 600);
+      });
+      diceRollTimer = null;
+
+      // Cerrar el modal de dados e iniciar movimiento en vivo
+      closeTurnModal();
+      isRolling = false;
 
       if (rollData.action_required === 'WENT_TO_JAIL') {
         showToast(`🚨 ¡${rollData.player_name} fue enviado directo a la Cárcel! Turno finalizado.`, 'error');
         dismissContextualAction();
         await refreshGameData();
       } else {
-        // Animación paso a paso en el tablero
+        // Animación paso a paso en el tablero (~260ms por casilla)
         animatePlayerMovement(activePlayer.id, activePlayer.token, fromPos, rollData.new_position, async () => {
           if (rollData.passed_go) {
             showToast(`🚩 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
@@ -1839,8 +1957,18 @@
       }
 
     } catch (e) {
+      if (diceAnimInterval) {
+        clearInterval(diceAnimInterval);
+        diceAnimInterval = null;
+      }
       if (dice1El) dice1El.classList.remove('dice-rolling');
       if (dice2El) dice2El.classList.remove('dice-rolling');
+      if (btnRoll) {
+        btnRoll.disabled = false;
+        btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
+      }
+      if (btnRollText) btnRollText.textContent = 'Tirar Dados y Avanzar';
+      if (btnManual) btnManual.disabled = false;
       isRolling = false;
       showToast(e.message, 'error');
     }
@@ -1857,6 +1985,23 @@
   async function executeJailTryDoubles() {
     const activePlayer = getActivePlayer();
     if (!activePlayer) return;
+
+    isRolling = true;
+    const dice1El = document.getElementById('dice-box-1');
+    const dice2El = document.getElementById('dice-box-2');
+    const sumBadge = document.getElementById('dice-sum-badge');
+
+    if (dice1El) dice1El.classList.add('dice-rolling');
+    if (dice2El) dice2El.classList.add('dice-rolling');
+    if (sumBadge) sumBadge.textContent = '...';
+
+    if (diceAnimInterval) clearInterval(diceAnimInterval);
+    diceAnimInterval = setInterval(() => {
+      if (dice1El) dice1El.textContent = Math.floor(Math.random() * 6) + 1;
+      if (dice2El) dice2El.textContent = Math.floor(Math.random() * 6) + 1;
+    }, 70);
+
+    const startTime = Date.now();
 
     try {
       const d1El = document.getElementById('manual-die-1');
@@ -1887,24 +2032,47 @@
 
       const data = await res.json();
 
-      const dice1El = document.getElementById('dice-box-1');
-      const dice2El = document.getElementById('dice-box-2');
-      if (dice1El && dice2El && data.dice_1 && data.dice_2) {
-        dice1El.textContent = getDiceFace(data.dice_1);
-        dice2El.textContent = getDiceFace(data.dice_2);
-        const sumBadge = document.getElementById('dice-sum-badge');
-        if (sumBadge) sumBadge.textContent = `= ${data.dice_1 + data.dice_2}`;
+      const elapsed = Date.now() - startTime;
+      const minRollDuration = 750;
+      if (elapsed < minRollDuration) {
+        await new Promise(resolve => {
+          diceRollTimer = setTimeout(resolve, minRollDuration - elapsed);
+        });
+        diceRollTimer = null;
       }
 
-      // Limpiar inputs manuales si se utilizaron
+      if (diceAnimInterval) {
+        clearInterval(diceAnimInterval);
+        diceAnimInterval = null;
+      }
+
+      if (dice1El) {
+        dice1El.classList.remove('dice-rolling');
+        dice1El.textContent = getDiceFace(data.dice_1);
+      }
+      if (dice2El) {
+        dice2El.classList.remove('dice-rolling');
+        dice2El.textContent = getDiceFace(data.dice_2);
+      }
+      if (sumBadge) {
+        sumBadge.textContent = `= ${data.dice_1 + data.dice_2}`;
+      }
+
       if (d1El && d2El) {
         d1El.value = '';
         d2El.value = '';
         onManualDiceInputChanged();
       }
 
+      // Pausa de lectura de 600ms con el modal abierto
+      await new Promise(resolve => {
+        diceRollTimer = setTimeout(resolve, 600);
+      });
+      diceRollTimer = null;
+
       closeTurnModal();
       closeActionModal();
+      isRolling = false;
 
       if (data.is_doubles) {
         showToast(`🎉 ¡${activePlayer.name} sacó dobles (${data.dice_1}+${data.dice_2}) y quedó libre avanzando a casilla #${data.new_position}!`);
@@ -1926,6 +2094,13 @@
         await refreshGameData();
       }
     } catch (e) {
+      if (diceAnimInterval) {
+        clearInterval(diceAnimInterval);
+        diceAnimInterval = null;
+      }
+      if (dice1El) dice1El.classList.remove('dice-rolling');
+      if (dice2El) dice2El.classList.remove('dice-rolling');
+      isRolling = false;
       showToast(e.message, 'error');
     }
   }
@@ -2980,6 +3155,7 @@
       }
       dismissContextualAction();
       isPaused = false;
+      resetDiceDisplay();
       showToast(`Turno avanzado al siguiente jugador.`);
       await refreshGameData();
     } catch (e) {
