@@ -64,21 +64,86 @@
   <div class="flex items-center gap-2">
     <a
       href="/"
-      class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+      class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
     >
       <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
-      <span>Lobby</span>
+      <span class="hidden sm:inline">Lobby</span>
     </a>
+
+    <!-- Chip de Jugador Activo en Navbar -->
+    <div
+      id="nav-active-player-chip"
+      onclick="const ap = getActivePlayer(); if (ap) openPlayerProfile(ap.id);"
+      class="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700 shadow-xs hover:border-emerald-400 transition-all select-none"
+      title="Toca para ver el perfil y escrituras del jugador en turno"
+    >
+      <span id="nav-player-token" class="text-xl">🎩</span>
+      <div class="text-left leading-tight hidden xs:block">
+        <div class="flex items-center gap-1">
+          <span id="nav-player-name" class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate max-w-[90px]">Cargando...</span>
+          <span id="nav-player-status" class="text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200">TURNO</span>
+        </div>
+        <span id="nav-player-money" class="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">$0</span>
+      </div>
+    </div>
+
+    <!-- Selector de Modo de Dados: Auto vs Manual -->
+    <div class="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 text-xs font-heading font-bold">
+      <button
+        id="mode-btn-auto"
+        type="button"
+        onclick="setDiceMode('AUTO')"
+        class="px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs"
+        title="Modo Automático: la app tira dados aleatorios"
+      >
+        <i data-lucide="sparkles" class="w-3 h-3"></i>
+        <span class="hidden md:inline">Auto</span>
+      </button>
+      <button
+        id="mode-btn-manual"
+        type="button"
+        onclick="setDiceMode('MANUAL')"
+        class="px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
+        title="Modo Manual: ingresa el resultado de dados físicos de la mesa"
+      >
+        <i data-lucide="hand" class="w-3 h-3"></i>
+        <span class="hidden md:inline">Manual</span>
+      </button>
+    </div>
+
+    <!-- Botón Play / Pausa -->
+    <button
+      id="btn-play-pause"
+      type="button"
+      onclick="togglePlayPause()"
+      class="text-xs font-heading font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl shadow-xs active:scale-95"
+      title="Iniciar o Pausar el flujo de turnos"
+    >
+      <i id="btn-play-pause-icon" data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+      <span id="btn-play-pause-text">Play</span>
+    </button>
 
     <!-- Botón Menú Táctico Completo -->
     <button
       type="button"
       onclick="openActiveTurnModal()"
-      class="text-xs font-heading font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xs"
+      class="text-xs font-heading font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xs"
       title="Abrir menú táctico para edificar, hipotecar o ajustes bancarios"
     >
       <i data-lucide="sliders" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>
-      <span class="hidden sm:inline">Menú Táctico</span>
+      <span class="hidden lg:inline">Táctico</span>
+    </button>
+
+    <!-- Botón de Pasar Turno Rápido -->
+    <button
+      id="advance-turn-btn"
+      type="button"
+      onclick="advanceTurn()"
+      class="text-xs font-heading font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xs"
+      title="Pasar turno al siguiente jugador"
+    >
+      <span class="hidden sm:inline">Pasar</span>
+      <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
     </button>
 
     <!-- Botón de Finalizar Partida -->
@@ -86,7 +151,7 @@
       id="btn-finish-game"
       type="button"
       onclick="confirmFinishGame()"
-      class="text-xs font-heading font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800/80 bg-white dark:bg-slate-800 shadow-xs"
+      class="text-xs font-heading font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-red-200 dark:border-red-800/80 bg-white dark:bg-slate-800 shadow-xs"
       title="Cerrar la partida y calcular el podio de ganadores"
     >
       <i data-lucide="flag" class="w-3.5 h-3.5 text-red-500"></i>
@@ -99,230 +164,41 @@
 <div class="space-y-6">
 
   <!-- ========================================================================= -->
-  <!-- PANEL SUPERIOR DE COMANDO: HUD DE TURNO, DADOS Y ACCIONES EN MESA           -->
-  <!-- ========================================================================= -->
-  <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-slate-200/90 dark:border-slate-700/80 shadow-sm space-y-3 max-w-[1240px] mx-auto">
-    
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      
-      <!-- Jugador en Turno Activo (Toca para abrir Menú Táctico) -->
-      <div
-        onclick="openActiveTurnModal()"
-        title="Toca para abrir el Menú Táctico (Construir, Hipotecas, Banca)"
-        class="inline-flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 shadow-xs cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all active:scale-95 shrink-0"
-      >
-        <span id="active-player-token-large" class="text-3xl shrink-0">🎩</span>
-        <div class="text-left min-w-[130px] sm:min-w-[160px]">
-          <div class="flex items-center gap-1.5">
-            <span class="text-[9px] font-mono uppercase font-bold text-emerald-700 dark:text-emerald-400 tracking-wider whitespace-nowrap">
-              Turno Activo
-            </span>
-            <span class="text-slate-300 dark:text-slate-600">•</span>
-            <span id="active-player-location-text" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold whitespace-nowrap">
-              SALIDA (#0)
-            </span>
-          </div>
-          <h2 id="active-player-name-large" class="text-base sm:text-lg font-heading font-extrabold text-slate-900 dark:text-white leading-tight">
-            Cargando...
-          </h2>
-        </div>
-        <div class="pl-3 border-l border-emerald-200 dark:border-emerald-800 text-right shrink-0">
-          <span class="block text-[9px] font-mono uppercase text-slate-400 font-medium">Saldo</span>
-          <span id="active-player-money-large" class="text-lg sm:text-xl font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-            $0
-          </span>
-        </div>
-      </div>
-
-      <!-- Controles de Dados Centrales (Dados 1 y 2, Tirar y Manual) -->
-      <div id="normal-dice-controls" class="flex flex-wrap items-center justify-center gap-2.5">
-        <div class="flex items-center gap-2">
-          <div id="dice-box-1" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-xl text-slate-800 dark:text-white shadow-xs transition-transform select-none">
-            -
-          </div>
-          <span class="text-slate-400 font-bold text-xs">+</span>
-          <div id="dice-box-2" class="w-10 h-10 rounded-xl bg-white dark:bg-slate-700 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-xl text-slate-800 dark:text-white shadow-xs transition-transform select-none">
-            -
-          </div>
-          <span id="dice-sum-badge" class="font-mono font-extrabold text-xs text-slate-700 dark:text-slate-300 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600">
-            = ?
-          </span>
-        </div>
-
-        <!-- Botón Tirar Dados -->
-        <button
-          id="btn-roll-dice"
-          type="button"
-          onclick="handleRollDiceClick()"
-          class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5"
-        >
-          <i data-lucide="dices" class="w-4 h-4"></i>
-          <span id="btn-roll-dice-text">Tirar Dados</span>
-        </button>
-
-        <!-- Entrada rápida para dados físicos en mesa -->
-        <div id="manual-dice-container" class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 pl-2 border-l border-slate-200 dark:border-slate-700">
-          <input
-            id="manual-die-1"
-            type="number"
-            min="1"
-            max="6"
-            placeholder="D1"
-            title="Dado 1 (1 al 6)"
-            oninput="onManualDiceInputChanged()"
-            class="w-11 sm:w-12 h-8 px-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <span class="text-slate-400 font-bold text-xs">+</span>
-          <input
-            id="manual-die-2"
-            type="number"
-            min="1"
-            max="6"
-            placeholder="D2"
-            title="Dado 2 (1 al 6)"
-            oninput="onManualDiceInputChanged()"
-            class="w-11 sm:w-12 h-8 px-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold text-center text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <span id="manual-dice-sum-badge" class="font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            = ?
-          </span>
-          <button
-            id="btn-manual-roll"
-            type="button"
-            onclick="handleManualRollClick()"
-            class="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-xs font-heading font-bold text-slate-700 dark:text-slate-200 transition-colors"
-          >
-            Mover
-          </button>
-        </div>
-
-        <!-- Alerta de Turno Extra por Dobles -->
-        <div id="doubles-extra-badge" class="hidden inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700 animate-pulse">
-          <span>✨</span>
-          <span id="doubles-extra-text">¡Sacaste dobles!</span>
-        </div>
-      </div>
-
-      <!-- Estado de Sala, Ronda y Botón de Pasar Turno -->
-      <div class="flex items-center gap-2">
-        <div class="text-right pr-2 hidden sm:block">
-          <div class="flex items-center gap-1.5 justify-end">
-            <span class="text-xs font-heading font-extrabold text-slate-800 dark:text-white uppercase">{{ game.code }}</span>
-            <span id="game-status-badge" class="text-[9px] font-mono uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
-              {% set st = (game.status.value if game.status.value is defined else game.status)|string|upper %}
-              {% if 'WAITING' in st %}En Espera{% elif 'PROGRESS' in st %}En Curso{% elif 'FINISHED' in st %}Finalizada{% else %}{{ st }}{% endif %}
-            </span>
-          </div>
-          <span class="text-[10px] text-slate-400 font-mono">Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong></span>
-        </div>
-
-        <button
-          id="advance-turn-btn"
-          type="button"
-          onclick="advanceTurn()"
-          class="py-2 px-3.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-emerald-600 dark:hover:bg-emerald-500 text-white dark:text-slate-900 hover:text-white dark:hover:text-white font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1 active:scale-95 shadow-sm"
-          title="Pasar turno al siguiente jugador"
-        >
-          <span>Pasar Turno</span>
-          <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- Panel de Control de Cárcel en HUD -->
-    <div id="jail-hud-controls" class="hidden max-w-lg mx-auto pt-1 animate-fade-in"></div>
-
-    <!-- Tarjeta de Acción Contextual por Casilla (1 Solo Toque) -->
-    <div id="contextual-action-box" class="hidden p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-900/60 max-w-lg mx-auto text-center space-y-2 animate-fade-in">
-      <!-- Inyectado dinámicamente según casilla donde caiga -->
-    </div>
-
-    <!-- Muelle Oculto de compatibilidad para listado rápido -->
-    <div id="hud-players-dock" class="hidden"></div>
-
-  </div>
-
-  <!-- ========================================================================= -->
   <!-- TABLERO VISUAL EN CIRCUITO M (11 COLUMNAS X 6 FILAS)                      -->
   <!-- ========================================================================= -->
-  <div class="relative w-full max-w-[1240px] mx-auto bg-slate-200/80 dark:bg-slate-900/90 rounded-3xl p-2 sm:p-3 border-2 border-slate-300 dark:border-slate-700 shadow-2xl overflow-x-auto">
+  <div class="relative w-full max-w-[1240px] mx-auto bg-slate-200/80 dark:bg-slate-900/90 rounded-3xl p-2 sm:p-3 border-2 border-slate-300 dark:border-slate-700 shadow-2xl overflow-x-auto min-h-[540px]">
     
-    <!-- Conector Visual Fila 1: Sentido de la pista hacia la Salida -->
-    <div class="min-w-[1020px] lg:min-w-0 w-full flex items-center justify-between px-3 py-1 mb-1.5 rounded-xl bg-slate-900/5 dark:bg-white/5 border border-slate-200/80 dark:border-slate-700/60 text-[10px] font-mono text-slate-500">
-      <div class="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
-        <span class="text-xs">🚩</span>
-        <span>SALIDA (#0)</span>
-      </div>
-      <div class="flex items-center gap-2 font-mono font-bold text-slate-600 dark:text-slate-300">
-        <span class="animate-pulse text-emerald-500 font-extrabold">← ← ←</span>
-        <span class="tracking-wider uppercase text-[9px] sm:text-[10px]">Recta Superior de Retorno a Salida (+$200)</span>
-        <span class="animate-pulse text-emerald-500 font-extrabold">← ← ←</span>
-      </div>
-      <div class="flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400">
-        <span class="text-[9px]">VAYA A LA CÁRCEL (#30)</span>
-        <span class="text-xs">👮</span>
+    <!-- Overlay de Play / Inicio de Turno sobre el Tablero -->
+    <div
+      id="board-play-overlay"
+      class="absolute inset-0 z-40 bg-slate-950/40 backdrop-blur-xs rounded-3xl flex items-center justify-center transition-all duration-300 hidden"
+    >
+      <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 text-center space-y-4">
+        <div class="flex items-center justify-center gap-3">
+          <span id="overlay-player-token" class="text-4xl animate-bounce">🎩</span>
+          <div class="text-left">
+            <span class="text-[10px] font-mono uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider block">Turno Activo</span>
+            <h3 id="overlay-player-name" class="text-lg font-heading font-black text-slate-900 dark:text-white">Cargando...</h3>
+            <span id="overlay-player-money" class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">$0</span>
+          </div>
+        </div>
+        <p id="overlay-player-desc" class="text-xs text-slate-500 dark:text-slate-400">
+          Toca el botón para abrir el control de dados y mover tu ficha en el tablero.
+        </p>
+        <button
+          type="button"
+          onclick="startTurnFromOverlay()"
+          class="w-full py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+          <span>JUGAR TURNO</span>
+        </button>
       </div>
     </div>
 
+    <!-- Grilla del Tablero en M (Solo las 40 Casillas Reales) -->
     <div id="monopoly-board-grid" class="monopoly-board min-w-[1020px] lg:min-w-0 w-full relative">
-
-      <!-- ===================================================================== -->
-      <!-- POCKET 1: INSPECTOR DE CASILLA EN VIVO (FILA 2, COLS 2 A 6)           -->
-      <!-- ===================================================================== -->
-      <div
-        id="live-tile-inspector"
-        style="grid-column: 2 / 7; grid-row: 2;"
-        class="z-20 h-full w-full"
-      >
-        <!-- Inyectado dinámicamente con desglose de rentas, hipoteca y dueño -->
-      </div>
-
-      <!-- ===================================================================== -->
-      <!-- POCKET 2: PANEL RESUMEN DE JUGADORES (FILA 2, COLS 7 A 10)            -->
-      <!-- ===================================================================== -->
-      <div
-        id="players-summary-dock"
-        style="grid-column: 7 / 11; grid-row: 2;"
-        class="z-20 h-full w-full"
-      >
-        <!-- Inyectado dinámicamente con chips de grupos y datos de jugadores -->
-      </div>
-
-      <!-- ===================================================================== -->
-      <!-- POCKET 3: HUD TÁCTICO CENTRAL INFERIOR (FILA 6, COLS 4 A 8)            -->
-      <!-- ===================================================================== -->
-      <div
-        id="center-board-hud"
-        style="grid-column: 4 / 9; grid-row: 6;"
-        class="z-20 h-full w-full"
-      >
-        <!-- Inyectado dinámicamente con estado de turno y acciones de dados -->
-      </div>
-
-      <!-- ===================================================================== -->
-      <!-- CELDAS DE ESPACIO NEGATIVO (VALLES DEL CIRCUITO EN M)                 -->
-      <!-- ===================================================================== -->
-      <!-- Fila 3 -->
-      <div style="grid-column: 2; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 6; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 10; grid-row: 3;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-
-      <!-- Fila 4 -->
-      <div style="grid-column: 2; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 4; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 6; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 8; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 10; grid-row: 4;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-
-      <!-- Fila 5 -->
-      <div style="grid-column: 2; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 4; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 8; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-      <div style="grid-column: 10; grid-row: 5;" class="rounded-xl border border-dashed border-slate-300/40 dark:border-slate-700/40 bg-slate-100/20 dark:bg-slate-900/20 pointer-events-none"></div>
-
       <!-- Las 40 casillas (.board-tile) se inyectan dinámicamente en sus coordenadas exactas -->
-
     </div>
 
   </div>
@@ -339,7 +215,13 @@
           Auditoría Inmutable
         </span>
       </div>
-      <span class="text-[11px] font-mono text-slate-400">Actualizado al instante</span>
+      <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+        <span class="text-xs font-heading font-extrabold text-slate-700 dark:text-slate-200 uppercase">{{ game.code }}</span>
+        <span>•</span>
+        <span id="game-status-badge" class="uppercase font-bold text-emerald-600">En Curso</span>
+        <span>•</span>
+        <span>Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong></span>
+      </div>
     </div>
 
     <div id="ledger-container" class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
@@ -652,6 +534,161 @@
 
   </div>
 </div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE ACCIÓN DE TURNO: DADOS AUTO / MANUAL Y CÁRCEL                   -->
+<!-- ========================================================================= -->
+<div id="turn-action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm hidden animate-fade-in">
+  <div class="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 sm:p-6 space-y-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
+      <div class="flex items-center gap-3">
+        <span id="turn-modal-player-token" class="text-3xl">🎩</span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 id="turn-modal-player-name" class="font-heading font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+              Jugador
+            </h3>
+            <span id="turn-modal-player-status" class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400">
+              TURNO ACTIVO
+            </span>
+          </div>
+          <p id="turn-modal-player-info" class="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
+            $0 • Casilla #0
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick="closeTurnModal()"
+        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Sección cuando el jugador está libre -->
+    <div id="turn-modal-free-section" class="space-y-4 text-center">
+      <!-- Selector interno Auto vs Manual -->
+      <div class="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 text-xs font-bold">
+        <button
+          type="button"
+          id="turn-mode-btn-auto"
+          onclick="setDiceMode('AUTO')"
+          class="px-3 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs flex items-center gap-1.5"
+        >
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span>Automático</span>
+        </button>
+        <button
+          type="button"
+          id="turn-mode-btn-manual"
+          onclick="setDiceMode('MANUAL')"
+          class="px-3 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center gap-1.5"
+        >
+          <i data-lucide="hand" class="w-3.5 h-3.5"></i>
+          <span>Dados Físicos (Manual)</span>
+        </button>
+      </div>
+
+      <!-- Vista Auto -->
+      <div id="turn-modal-auto-view" class="space-y-3 py-1">
+        <div class="flex items-center justify-center gap-3">
+          <div id="dice-box-1" class="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-2xl text-slate-800 dark:text-white shadow-xs select-none">
+            -
+          </div>
+          <span class="text-slate-400 font-black text-lg">+</span>
+          <div id="dice-box-2" class="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-black text-2xl text-slate-800 dark:text-white shadow-xs select-none">
+            -
+          </div>
+          <span id="dice-sum-badge" class="font-mono font-extrabold text-sm text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
+            = ?
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          La app generará dos números aleatorios del 1 al 6 y animará tu ficha paso a paso en el tablero.
+        </p>
+        <button
+          id="btn-roll-dice"
+          type="button"
+          onclick="handleRollDiceClick()"
+          class="w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="dices" class="w-5 h-5"></i>
+          <span id="btn-roll-dice-text">Tirar Dados y Avanzar</span>
+        </button>
+      </div>
+
+      <!-- Vista Manual -->
+      <div id="turn-modal-manual-view" class="space-y-3 py-1 hidden">
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Ingresa los valores obtenidos en los dados físicos de la mesa (1 al 6):
+        </p>
+        <div class="flex items-center justify-center gap-3">
+          <input
+            id="manual-die-1"
+            type="number"
+            min="1"
+            max="6"
+            placeholder="D1"
+            title="Dado 1 (1 al 6)"
+            oninput="onManualDiceInputChanged()"
+            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span class="text-slate-400 font-black text-lg">+</span>
+          <input
+            id="manual-die-2"
+            type="number"
+            min="1"
+            max="6"
+            placeholder="D2"
+            title="Dado 2 (1 al 6)"
+            oninput="onManualDiceInputChanged()"
+            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span id="manual-dice-sum-badge" class="font-mono font-bold text-sm text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
+            = ?
+          </span>
+        </div>
+        <button
+          id="btn-manual-roll"
+          type="button"
+          onclick="handleManualRollClick()"
+          class="w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+          <span>Mover Ficha con Estos Dados</span>
+        </button>
+      </div>
+
+      <!-- Alerta de Dobles -->
+      <div id="doubles-extra-badge" class="hidden inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/90 px-3 py-1 rounded-full border border-emerald-300 dark:border-emerald-700 animate-pulse">
+        <span>✨</span>
+        <span id="doubles-extra-text">¡Sacaste dobles! Tiro extra disponible</span>
+      </div>
+    </div>
+
+    <!-- Contenido cuando está en Prisión -->
+    <div id="jail-hud-controls" class="hidden space-y-3">
+      <!-- Inyectado dinámicamente -->
+    </div>
+
+    <div id="normal-dice-controls" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE ACCIÓN POST-ATERRIZAJE (COMPRA, RENTA, IMPUESTOS)               -->
+<!-- ========================================================================= -->
+<div id="landed-action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm hidden animate-fade-in">
+  <div class="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4 text-center">
+    <div id="landed-modal-content" class="space-y-3">
+      <!-- Inyectado según la casilla donde aterrizó -->
+    </div>
+    <!-- Compatibilidad oculta para cualquier referencia contextual anterior -->
+    <div id="contextual-action-box" class="hidden"></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -670,6 +707,85 @@
   let selectedMortgageGroup = 'ALL';
   let activeBankDirection = 'CREDIT';
   let isRolling = false;
+  let diceMode = 'AUTO';
+  let isPaused = false;
+
+  function setDiceMode(mode) {
+    diceMode = mode;
+    const btnAuto = document.getElementById('mode-btn-auto');
+    const btnManual = document.getElementById('mode-btn-manual');
+    const turnBtnAuto = document.getElementById('turn-mode-btn-auto');
+    const turnBtnManual = document.getElementById('turn-mode-btn-manual');
+    const autoView = document.getElementById('turn-modal-auto-view');
+    const manualView = document.getElementById('turn-modal-manual-view');
+
+    if (mode === 'AUTO') {
+      if (btnAuto) btnAuto.className = 'px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs';
+      if (btnManual) btnManual.className = 'px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white';
+      if (turnBtnAuto) turnBtnAuto.className = 'px-3 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs flex items-center gap-1.5';
+      if (turnBtnManual) turnBtnManual.className = 'px-3 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center gap-1.5';
+      if (autoView) autoView.classList.remove('hidden');
+      if (manualView) manualView.classList.add('hidden');
+    } else {
+      if (btnAuto) btnAuto.className = 'px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white';
+      if (btnManual) btnManual.className = 'px-2.5 py-1 rounded-lg transition-all text-xs flex items-center gap-1 bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs';
+      if (turnBtnAuto) turnBtnAuto.className = 'px-3 py-1.5 rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center gap-1.5';
+      if (turnBtnManual) turnBtnManual.className = 'px-3 py-1.5 rounded-lg transition-all bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs flex items-center gap-1.5';
+      if (autoView) autoView.classList.add('hidden');
+      if (manualView) manualView.classList.remove('hidden');
+    }
+  }
+
+  function updatePlayPauseUI() {
+    const btn = document.getElementById('btn-play-pause');
+    const text = document.getElementById('btn-play-pause-text');
+    const icon = document.getElementById('btn-play-pause-icon');
+    const overlay = document.getElementById('board-play-overlay');
+
+    if (isPaused) {
+      if (btn) btn.className = 'text-xs font-heading font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl shadow-xs active:scale-95';
+      if (text) text.textContent = 'Play';
+      if (icon) icon.setAttribute('data-lucide', 'play');
+      if (overlay) overlay.classList.remove('hidden');
+    } else {
+      if (btn) btn.className = 'text-xs font-heading font-bold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl shadow-xs active:scale-95';
+      if (text) text.textContent = 'Pausa';
+      if (icon) icon.setAttribute('data-lucide', 'pause');
+      if (overlay) overlay.classList.add('hidden');
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function togglePlayPause() {
+    isPaused = !isPaused;
+    updatePlayPauseUI();
+    if (!isPaused) {
+      openTurnModal();
+    }
+  }
+
+  function startTurnFromOverlay() {
+    isPaused = false;
+    updatePlayPauseUI();
+    openTurnModal();
+  }
+
+  function openTurnModal() {
+    const modal = document.getElementById('turn-action-modal');
+    if (!modal) return;
+    syncTurnModal();
+    modal.classList.remove('hidden');
+  }
+
+  function closeTurnModal() {
+    const modal = document.getElementById('turn-action-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function closeLandedModal() {
+    const modal = document.getElementById('landed-action-modal');
+    if (modal) modal.classList.add('hidden');
+  }
 
   // Catálogo oficial de grupos de Monopoly con Iconos Lucide
   const OFFICIAL_GROUPS = [
@@ -1080,14 +1196,13 @@
     const gridContainer = document.getElementById('monopoly-board-grid');
     if (!gridContainer || !boardTiles || boardTiles.length === 0) return;
 
-    // Eliminar únicamente las casillas (.board-tile) manteniendo los pockets y negative fillers
+    // Eliminar únicamente las casillas (.board-tile) para redibujar
     gridContainer.querySelectorAll('.board-tile').forEach(el => el.remove());
 
     const activePlayer = getActivePlayer();
     const activeTile = activePlayer ? boardTiles.find(t => t.position === activePlayer.position) : null;
     const activeProp = activeTile ? propertyStates.find(p => p.tile_id === activeTile.tile_id) : null;
 
-    // Inicializar o refrescar inspector y componentes empotrados
     if (activeTile && !pinnedTileId) {
       renderTileInspector(activeTile, activeProp);
     } else if (!pinnedTileId && boardTiles.length > 0) {
@@ -1107,7 +1222,6 @@
       tileEl.style.gridColumn = coords.col;
 
       const isCorner = (pos === 0 || pos === 10 || pos === 20 || pos === 30);
-      const isReturnTrack = (coords.row === 1 && pos >= 31 && pos <= 39);
       const grp = OFFICIAL_GROUPS.find(g => g.key === tile.group);
       const propState = propertyStates.find(p => p.tile_id === tile.tile_id);
       
@@ -1137,6 +1251,7 @@
           return `
             <button
               type="button"
+              data-player-id="${p.id}"
               onclick="openPlayerProfile(${p.id}); event.stopPropagation();"
               class="relative inline-flex items-center justify-center text-xs transition-transform hover:scale-130 cursor-pointer ${
                 isActive
@@ -1164,7 +1279,7 @@
       if (isCorner) {
         let cornerTitle = '';
         let cornerIcon = '';
-        let cornerBg = 'bg-white/90 dark:bg-slate-800/90';
+        let cornerBg = 'bg-white/95 dark:bg-slate-800/95';
         let cornerSubtitle = '';
         if (pos === 0) { 
           cornerTitle = 'SALIDA'; 
@@ -1188,7 +1303,7 @@
           cornerSubtitle = 'Castigo';
         }
 
-        tileEl.className = `board-tile ${cornerBg} rounded-xl border p-1 flex flex-col justify-between items-center text-center overflow-hidden cursor-pointer shadow-xs`;
+        tileEl.className = `board-tile ${cornerBg} rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between items-center text-center overflow-hidden cursor-pointer shadow-xs select-none p-1 sm:p-1.5`;
         tileEl.innerHTML = `
           <div class="flex items-center justify-between w-full px-0.5">
             <span class="text-xs leading-none">${cornerIcon}</span>
@@ -1207,25 +1322,25 @@
           </div>
         `;
       } else {
-        // Casilla Lateral Normal
-        tileEl.className = `board-tile bg-white/95 dark:bg-slate-800/95 rounded-xl border border-slate-200/90 dark:border-slate-700/80 p-1 flex flex-col justify-between overflow-hidden cursor-pointer hover:border-emerald-400 shadow-xs ${isReturnTrack ? 'border-t-2 border-t-emerald-400/80' : ''}`;
+        // Casilla Lateral Normal: Banda superior limpia al ras sin margen blanco
+        tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between overflow-hidden cursor-pointer hover:border-emerald-400 shadow-xs select-none`;
         
         let colorBarHtml = '';
         if (grp) {
-          colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-2 w-full rounded-t-md shrink-0"></div>`;
+          colorBarHtml = `<div style="background-color: ${grp.hex};" class="h-2.5 w-full shrink-0"></div>`;
         } else if (tile.tile_type === 'TAX') {
-          colorBarHtml = `<div class="h-1.5 w-full bg-red-400 rounded-t-md shrink-0"></div>`;
+          colorBarHtml = `<div class="h-2 w-full bg-red-400 shrink-0"></div>`;
         } else if (tile.tile_type === 'RAILROAD') {
-          colorBarHtml = `<div class="h-1.5 w-full bg-slate-600 dark:bg-slate-400 rounded-t-md shrink-0"></div>`;
+          colorBarHtml = `<div class="h-2 w-full bg-slate-600 dark:bg-slate-400 shrink-0"></div>`;
         } else if (tile.tile_type === 'UTILITY') {
-          colorBarHtml = `<div class="h-1.5 w-full bg-cyan-500 rounded-t-md shrink-0"></div>`;
+          colorBarHtml = `<div class="h-2 w-full bg-cyan-500 shrink-0"></div>`;
         } else {
-          colorBarHtml = `<div class="h-1.5 w-full bg-slate-300 dark:bg-slate-600 rounded-t-md shrink-0"></div>`;
+          colorBarHtml = `<div class="h-2 w-full bg-slate-300 dark:bg-slate-600 shrink-0"></div>`;
         }
 
         tileEl.innerHTML = `
           ${colorBarHtml}
-          <div class="px-0.5 py-0.5 flex flex-col justify-between flex-1 min-h-0">
+          <div class="p-1 sm:p-1.5 flex flex-col justify-between flex-1 min-h-0">
             <div class="flex items-center justify-between gap-0.5">
               <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 truncate leading-tight" title="${tile.name}">
                 ${tile.name}
@@ -1234,7 +1349,7 @@
             </div>
 
             <div class="flex items-center justify-between text-[7px] sm:text-[8px] font-mono text-slate-400 dark:text-slate-400">
-              <span class="font-bold">${isReturnTrack ? '← #' + pos : '#' + pos}</span>
+              <span class="font-bold">#${pos}</span>
               ${tile.price ? `<span class="font-bold text-slate-700 dark:text-slate-200">$${tile.price}</span>` : ''}
             </div>
 
@@ -1251,167 +1366,259 @@
   }
 
   // ========================================================
-  // RENDER: HUD CENTRAL DEL JUEGO
+  // RENDER: ESTADO DEL JUEGO Y SINCRONIZACIÓN DE HUD Y MODALES
   // ========================================================
   function renderCenterHUD() {
-    document.getElementById('turn-round-number').textContent = `#${gameState.current_turn}`;
-    document.getElementById('game-status-badge').textContent = getReadableStatus(gameState.status);
+    const roundNumberEl = document.getElementById('turn-round-number');
+    if (roundNumberEl && gameState) roundNumberEl.textContent = `#${gameState.current_turn}`;
+
+    const statusBadgeEl = document.getElementById('game-status-badge');
+    if (statusBadgeEl && gameState) statusBadgeEl.textContent = getReadableStatus(gameState.status);
 
     const activePlayer = getActivePlayer();
     if (!activePlayer) {
-      document.getElementById('active-player-name-large').textContent = 'Esperando jugadores';
-      document.getElementById('active-player-money-large').textContent = '$0';
-      document.getElementById('active-player-location-text').textContent = '-';
+      const navName = document.getElementById('nav-player-name');
+      if (navName) navName.textContent = 'Sin Jugador';
       return;
     }
 
-    // Actualizar datos del jugador en turno en el centro
-    document.getElementById('active-player-token-large').textContent = getTokenEmoji(activePlayer.token);
-    document.getElementById('active-player-name-large').textContent = activePlayer.name;
-    document.getElementById('active-player-money-large').textContent = `$${activePlayer.money.toLocaleString()}`;
+    // Actualizar Chip en Navbar
+    const navToken = document.getElementById('nav-player-token');
+    const navName = document.getElementById('nav-player-name');
+    const navMoney = document.getElementById('nav-player-money');
+    const navStatus = document.getElementById('nav-player-status');
+    if (navToken) navToken.textContent = getTokenEmoji(activePlayer.token);
+    if (navName) navName.textContent = activePlayer.name;
+    if (navMoney) navMoney.textContent = `$${activePlayer.money.toLocaleString()}`;
+    if (navStatus) {
+      navStatus.textContent = activePlayer.in_jail ? 'CÁRCEL' : 'TURNO';
+      navStatus.className = activePlayer.in_jail 
+        ? 'text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200'
+        : 'text-[8px] font-mono font-bold px-1 py-0.2 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200';
+    }
 
-    const currentTile = boardTiles.find(t => t.position === activePlayer.position);
-    const locText = currentTile ? `${currentTile.name} (Casilla #${activePlayer.position})` : `Casilla #${activePlayer.position}`;
-    document.getElementById('active-player-location-text').textContent = locText;
+    // Actualizar Overlay de Tablero
+    const ovToken = document.getElementById('overlay-player-token');
+    const ovName = document.getElementById('overlay-player-name');
+    const ovMoney = document.getElementById('overlay-player-money');
+    const ovDesc = document.getElementById('overlay-player-desc');
+    if (ovToken) ovToken.textContent = getTokenEmoji(activePlayer.token);
+    if (ovName) ovName.textContent = activePlayer.name;
+    if (ovMoney) ovMoney.textContent = `$${activePlayer.money.toLocaleString()}`;
+    if (ovDesc) {
+      ovDesc.textContent = activePlayer.in_jail 
+        ? `⛓️ Está en Prisión (Turno ${activePlayer.jail_turns}/3). Resuelve tu salida para continuar.`
+        : `📍 Casilla #${activePlayer.position}. Presiona para lanzar dados o gestionar tus propiedades.`;
+    }
 
-    // Control de Estado del Jugador: ¿Está en Prisión?
-    const normalDiceControls = document.getElementById('normal-dice-controls');
-    const jailHudControls = document.getElementById('jail-hud-controls');
+    // Sincronizar Modal de Turno
+    syncTurnModal();
+  }
+
+  function syncTurnModal() {
+    const activePlayer = getActivePlayer();
+    if (!activePlayer || !gameState) return;
+
+    const modalToken = document.getElementById('turn-modal-player-token');
+    const modalName = document.getElementById('turn-modal-player-name');
+    const modalInfo = document.getElementById('turn-modal-player-info');
+    const modalStatus = document.getElementById('turn-modal-player-status');
+
+    if (modalToken) modalToken.textContent = getTokenEmoji(activePlayer.token);
+    if (modalName) modalName.textContent = activePlayer.name;
+    
+    const curTile = boardTiles.find(t => t.position === activePlayer.position);
+    const tileName = curTile ? curTile.name : `Casilla #${activePlayer.position}`;
+    if (modalInfo) modalInfo.textContent = `$${activePlayer.money.toLocaleString()} • ${tileName} (#${activePlayer.position})`;
+    if (modalStatus) {
+      modalStatus.textContent = activePlayer.in_jail ? 'EN PRISIÓN' : 'TURNO ACTIVO';
+      modalStatus.className = activePlayer.in_jail
+        ? 'text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400'
+        : 'text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400';
+    }
+
+    const freeSection = document.getElementById('turn-modal-free-section');
+    const jailControls = document.getElementById('jail-hud-controls');
     const doublesExtraBadge = document.getElementById('doubles-extra-badge');
-    const btnRollDice = document.getElementById('btn-roll-dice');
-    const btnRollDiceText = document.getElementById('btn-roll-dice-text');
-    const die1Input = document.getElementById('manual-die-1');
-    const die2Input = document.getElementById('manual-die-2');
-    const btnManualRoll = document.getElementById('btn-manual-roll');
+    const btnRoll = document.getElementById('btn-roll-dice');
+    const btnRollText = document.getElementById('btn-roll-dice-text');
+    const btnManual = document.getElementById('btn-manual-roll');
+    const d1Inp = document.getElementById('manual-die-1');
+    const d2Inp = document.getElementById('manual-die-2');
 
     if (activePlayer.in_jail) {
-      normalDiceControls.classList.add('hidden');
-      doublesExtraBadge.classList.add('hidden');
-      jailHudControls.classList.remove('hidden');
-
-      const isForcedFine = activePlayer.jail_turns >= 3;
-      jailHudControls.innerHTML = `
-        <div class="p-3.5 rounded-2xl ${isForcedFine ? 'bg-red-50 dark:bg-red-950/70 border border-red-300 dark:border-red-800' : 'bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800'} text-center space-y-2">
-          <div class="flex items-center justify-center gap-1.5 font-bold text-xs ${isForcedFine ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'}">
-            <span>⛓️</span>
-            <span>${activePlayer.name} está en Prisión (${isForcedFine ? '3er Turno Obligatorio' : `Turno ${activePlayer.jail_turns} de 3`})</span>
-          </div>
-
-          ${isForcedFine ? `
-            <p class="text-[11px] text-red-600 dark:text-red-400 font-semibold leading-tight">
-              ¡Límite alcanzado! Por reglas oficiales debes pagar la fianza de $50 o usar tarjeta para liberarte y poder moverte.
-            </p>
-            <div class="flex items-center justify-center gap-2 pt-1">
-              <button
-                type="button"
-                onclick="executeJailAction('PAY_FINE')"
-                class="py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-sm flex items-center gap-1.5"
-              >
-                <span>⚖️ Pagar Fianza $50</span>
-              </button>
-              <button
-                type="button"
-                onclick="executeJailAction('USE_CARD')"
-                class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs"
-              >
-                <span>🎫 Usar Tarjeta</span>
-              </button>
+      if (freeSection) freeSection.classList.add('hidden');
+      if (jailControls) {
+        jailControls.classList.remove('hidden');
+        const isForcedFine = activePlayer.jail_turns >= 3;
+        jailControls.innerHTML = `
+          <div class="p-4 rounded-2xl ${isForcedFine ? 'bg-red-50 dark:bg-red-950/70 border border-red-300 dark:border-red-800' : 'bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800'} text-center space-y-3">
+            <div class="flex items-center justify-center gap-1.5 font-bold text-sm ${isForcedFine ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'}">
+              <span>⛓️</span>
+              <span>${activePlayer.name} está en Prisión (${isForcedFine ? '3er Turno Obligatorio' : `Turno ${activePlayer.jail_turns} de 3`})</span>
             </div>
-          ` : `
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-              Intenta sacar dobles para salir libre y avanzar, o paga la fianza para moverte de inmediato.
-            </p>
-            <div class="flex flex-col gap-1.5 pt-1">
-              <button
-                type="button"
-                onclick="executeJailTryDoubles()"
-                class="py-2 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2"
-              >
-                <i data-lucide="dices" class="w-4 h-4"></i>
-                <span>🎲 Intentar Sacar Dobles</span>
-              </button>
-              <div class="flex items-center justify-center gap-2">
+
+            ${isForcedFine ? `
+              <p class="text-xs text-red-600 dark:text-red-400 font-semibold leading-tight">
+                ¡Límite alcanzado! Por reglas oficiales debes pagar la fianza de $50 o usar tarjeta para liberarte.
+              </p>
+              <div class="flex items-center justify-center gap-2 pt-1">
                 <button
                   type="button"
                   onclick="executeJailAction('PAY_FINE')"
-                  class="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-[11px]"
+                  class="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-sm flex items-center gap-1.5"
                 >
-                  ⚖️ Pagar $50 y Moverse
+                  <span>⚖️ Pagar Fianza $50</span>
                 </button>
                 <button
                   type="button"
                   onclick="executeJailAction('USE_CARD')"
-                  class="py-1.5 px-3 rounded-xl bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold text-[11px]"
+                  class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold text-xs"
                 >
-                  🎫 Usar Tarjeta
+                  <span>🎫 Usar Tarjeta</span>
                 </button>
               </div>
-            </div>
-          `}
-        </div>
-      `;
-      if (window.lucide) lucide.createIcons();
+            ` : `
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-tight">
+                Intenta sacar dobles para salir libre y avanzar, o paga la fianza para moverte de inmediato.
+              </p>
+              <div class="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onclick="executeJailTryDoubles()"
+                  class="py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2"
+                >
+                  <i data-lucide="dices" class="w-4 h-4"></i>
+                  <span>🎲 Intentar Sacar Dobles</span>
+                </button>
+                <div class="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onclick="executeJailAction('PAY_FINE')"
+                    class="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs"
+                  >
+                    ⚖️ Pagar $50 y Moverse
+                  </button>
+                  <button
+                    type="button"
+                    onclick="executeJailAction('USE_CARD')"
+                    class="py-2 px-3.5 rounded-xl bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs"
+                  >
+                    🎫 Usar Tarjeta
+                  </button>
+                </div>
+              </div>
+            `}
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+      }
     } else {
-      // Jugador Libre: Controles Normales de Dados
-      normalDiceControls.classList.remove('hidden');
-      jailHudControls.classList.add('hidden');
+      if (freeSection) freeSection.classList.remove('hidden');
+      if (jailControls) jailControls.classList.add('hidden');
 
-      // Control de Tirada Única
       if (gameState.has_rolled_dice) {
-        btnRollDice.disabled = true;
-        btnRollDice.className = 'py-2.5 px-6 rounded-xl bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-heading font-bold text-xs sm:text-sm uppercase tracking-wider cursor-not-allowed transition-all flex items-center gap-2 opacity-60';
-        btnRollDiceText.textContent = 'Dados ya lanzados en este turno';
-        if (die1Input) die1Input.disabled = true;
-        if (die2Input) die2Input.disabled = true;
-        btnManualRoll.disabled = true;
-        btnManualRoll.className = 'px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-400 cursor-not-allowed';
-        doublesExtraBadge.classList.add('hidden');
+        if (btnRoll) {
+          btnRoll.disabled = true;
+          btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-400 font-bold text-xs uppercase tracking-wider cursor-not-allowed';
+        }
+        if (btnRollText) btnRollText.textContent = 'Dados ya lanzados en este turno';
+        if (btnManual) {
+          btnManual.disabled = true;
+          btnManual.className = 'w-full py-3 px-6 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-400 font-bold text-xs uppercase tracking-wider cursor-not-allowed';
+        }
+        if (d1Inp) d1Inp.disabled = true;
+        if (d2Inp) d2Inp.disabled = true;
+        if (doublesExtraBadge) doublesExtraBadge.classList.add('hidden');
       } else {
-        btnRollDice.disabled = false;
-        btnRollDice.className = 'py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2';
-        btnRollDiceText.textContent = 'Tirar Dados y Avanzar';
-        if (die1Input) die1Input.disabled = false;
-        if (die2Input) die2Input.disabled = false;
-        btnManualRoll.disabled = false;
-        btnManualRoll.className = 'px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-xs font-heading font-bold text-slate-700 dark:text-slate-200 transition-colors';
+        if (btnRoll) {
+          btnRoll.disabled = false;
+          btnRoll.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
+        }
+        if (btnRollText) btnRollText.textContent = 'Tirar Dados y Avanzar';
+        if (btnManual) {
+          btnManual.disabled = false;
+          btnManual.className = 'w-full py-3 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2';
+        }
+        if (d1Inp) d1Inp.disabled = false;
+        if (d2Inp) d2Inp.disabled = false;
 
         if (gameState.consecutive_doubles > 0) {
-          doublesExtraBadge.classList.remove('hidden');
-          document.getElementById('doubles-extra-text').textContent = `¡Pares (${gameState.consecutive_doubles}/3)! Tiro extra disponible`;
+          if (doublesExtraBadge) {
+            doublesExtraBadge.classList.remove('hidden');
+            const dt = document.getElementById('doubles-extra-text');
+            if (dt) dt.textContent = `¡Pares (${gameState.consecutive_doubles}/3)! Tiro extra disponible`;
+          }
         } else {
-          doublesExtraBadge.classList.add('hidden');
+          if (doublesExtraBadge) doublesExtraBadge.classList.add('hidden');
         }
       }
     }
+  }
 
-    // Refrescar componentes tácticos empotrados
-    renderCenterBoardHUD();
-    renderPlayersSummaryDock();
-
-    // Muelle de jugadores en el pie del HUD (compatibilidad)
-    const dockContainer = document.getElementById('hud-players-dock');
-    if (dockContainer) {
-      dockContainer.innerHTML = playersData.map((p, idx) => {
-        const isActive = p.id === activePlayer.id;
-        const t = boardTiles.find(tile => tile.position === p.position);
-        return `
-          <button
-            type="button"
-            onclick="openPlayerProfile(${p.id})"
-            class="flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs transition-all border ${
-              isActive
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/20 font-bold shadow-xs'
-                : 'bg-white dark:bg-slate-700/70 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100'
-            }"
-            title="Toca para ver la cartera de propiedades de ${p.name}"
-          >
-            <span class="text-base">${getTokenEmoji(p.token)}</span>
-            <span class="truncate max-w-[70px]">${p.name}</span>
-            <span class="font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400">$${p.money.toLocaleString()}</span>
-          </button>
-        `;
-      }).join('');
+  // ========================================================
+  // ANIMACIÓN DE FICHA PASO A PASO POR EL TABLERO
+  // ========================================================
+  function animatePlayerMovement(playerId, playerToken, fromPos, toPos, onComplete) {
+    if (fromPos === toPos) {
+      if (onComplete) onComplete();
+      return;
     }
+
+    // Remover la ficha del jugador de la casilla de partida para que no se duplique
+    const startTileEl = document.getElementById(`tile-pos-${fromPos}`);
+    if (startTileEl) {
+      const existingToken = startTileEl.querySelector(`[data-player-id="${playerId}"]`);
+      if (existingToken) existingToken.remove();
+    }
+
+    let currentPos = fromPos;
+    let steps = (toPos - fromPos + 40) % 40;
+    if (steps === 0) steps = 40;
+
+    let stepCount = 0;
+    const timer = setInterval(() => {
+      // Limpiar ficha temporal de la casilla anterior
+      const prevTileEl = document.getElementById(`tile-pos-${currentPos}`);
+      if (prevTileEl) {
+        const tempToken = prevTileEl.querySelector(`[data-temp-token="${playerId}"]`);
+        if (tempToken) tempToken.remove();
+        prevTileEl.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50', 'dark:bg-emerald-950/60');
+      }
+
+      currentPos = (currentPos + 1) % 40;
+      stepCount++;
+
+      // Mostrar ficha temporal en la nueva casilla intermedia
+      const nextTileEl = document.getElementById(`tile-pos-${currentPos}`);
+      if (nextTileEl) {
+        nextTileEl.classList.add('ring-4', 'ring-emerald-400', 'bg-emerald-50', 'dark:bg-emerald-950/60');
+        const tokensContainer = nextTileEl.querySelector('.tile-tokens');
+        if (tokensContainer) {
+          const span = document.createElement('span');
+          span.setAttribute('data-temp-token', String(playerId));
+          span.className = 'text-xs scale-125 transition-transform duration-100 active-token-pulse inline-block';
+          span.textContent = getTokenEmoji(playerToken);
+          tokensContainer.appendChild(span);
+        }
+      }
+
+      if (currentPos === 0 && stepCount < steps) {
+        showToast('🚩 ¡Pasando por SALIDA (+ $200)!');
+      }
+
+      if (stepCount >= steps) {
+        clearInterval(timer);
+        setTimeout(() => {
+          if (nextTileEl) {
+            nextTileEl.classList.remove('ring-4', 'ring-emerald-400', 'bg-emerald-50', 'dark:bg-emerald-950/60');
+            const tempToken = nextTileEl.querySelector(`[data-temp-token="${playerId}"]`);
+            if (tempToken) tempToken.remove();
+          }
+          if (onComplete) onComplete();
+        }, 150);
+      }
+    }, 130);
   }
 
   // ========================================================
@@ -1431,14 +1638,14 @@
       const isDoubles = (d1 === d2);
       if (isDoubles) {
         badge.textContent = `= ${sum} ✨ (Par)`;
-        badge.className = 'font-mono font-bold text-xs text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-700';
+        badge.className = 'font-mono font-bold text-xs text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-700';
       } else {
         badge.textContent = `= ${sum}`;
-        badge.className = 'font-mono font-bold text-xs text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+        badge.className = 'font-mono font-bold text-xs text-slate-700 dark:text-slate-200 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
       }
     } else {
       badge.textContent = '= ?';
-      badge.className = 'font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
+      badge.className = 'font-mono font-bold text-xs text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700';
     }
   }
 
@@ -1479,12 +1686,15 @@
       return;
     }
 
-    // Efecto visual de giro en los dados
+    closeTurnModal();
+
     isRolling = true;
     const dice1El = document.getElementById('dice-box-1');
     const dice2El = document.getElementById('dice-box-2');
-    dice1El.classList.add('dice-rolling');
-    dice2El.classList.add('dice-rolling');
+    if (dice1El) dice1El.classList.add('dice-rolling');
+    if (dice2El) dice2El.classList.add('dice-rolling');
+
+    const fromPos = activePlayer.position;
 
     try {
       const payload = { player_id: activePlayer.id };
@@ -1506,14 +1716,17 @@
 
       const rollData = await res.json();
 
-      setTimeout(() => {
+      if (dice1El) {
         dice1El.classList.remove('dice-rolling');
-        dice2El.classList.remove('dice-rolling');
         dice1El.textContent = getDiceFace(rollData.dice_1);
+      }
+      if (dice2El) {
+        dice2El.classList.remove('dice-rolling');
         dice2El.textContent = getDiceFace(rollData.dice_2);
-        document.getElementById('dice-sum-badge').textContent = `= ${rollData.total_roll}`;
-        isRolling = false;
-      }, 350);
+      }
+      const sumBadge = document.getElementById('dice-sum-badge');
+      if (sumBadge) sumBadge.textContent = `= ${rollData.total_roll}`;
+      isRolling = false;
 
       // Limpiar inputs manuales si se utilizaron
       const d1Input = document.getElementById('manual-die-1');
@@ -1527,25 +1740,28 @@
       if (rollData.action_required === 'WENT_TO_JAIL') {
         showToast(`🚨 ¡${rollData.player_name} fue enviado directo a la Cárcel! Turno finalizado.`, 'error');
         dismissContextualAction();
+        await refreshGameData();
       } else {
-        if (rollData.passed_go) {
-          showToast(`🚩 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
-        }
+        // Animación paso a paso en el tablero
+        animatePlayerMovement(activePlayer.id, activePlayer.token, fromPos, rollData.new_position, async () => {
+          if (rollData.passed_go) {
+            showToast(`🚩 ¡${activePlayer.name} pasó por la SALIDA y cobró $200!`);
+          }
 
-        if (rollData.is_doubles && rollData.extra_turn) {
-          showToast(`✨ ¡Dobles (${rollData.dice_1}+${rollData.dice_2})! Tienes un turno extra.`);
-        }
+          if (rollData.is_doubles && rollData.extra_turn) {
+            showToast(`✨ ¡Dobles (${rollData.dice_1}+${rollData.dice_2})! Tienes un turno extra.`);
+          }
 
-        // Desplegar Acción Contextual por Casilla (1 Solo Toque)
-        displayContextualAction(rollData);
+          await refreshGameData();
+
+          // Desplegar Acción Contextual por Casilla en Modal (1 Solo Toque)
+          displayContextualAction(rollData);
+        });
       }
 
-      // Actualizar datos del juego
-      await refreshGameData();
-
     } catch (e) {
-      dice1El.classList.remove('dice-rolling');
-      dice2El.classList.remove('dice-rolling');
+      if (dice1El) dice1El.classList.remove('dice-rolling');
+      if (dice2El) dice2El.classList.remove('dice-rolling');
       isRolling = false;
       showToast(e.message, 'error');
     }
@@ -1596,7 +1812,8 @@
       if (dice1El && dice2El && data.dice_1 && data.dice_2) {
         dice1El.textContent = getDiceFace(data.dice_1);
         dice2El.textContent = getDiceFace(data.dice_2);
-        document.getElementById('dice-sum-badge').textContent = `= ${data.dice_1 + data.dice_2}`;
+        const sumBadge = document.getElementById('dice-sum-badge');
+        if (sumBadge) sumBadge.textContent = `= ${data.dice_1 + data.dice_2}`;
       }
 
       // Limpiar inputs manuales si se utilizaron
@@ -1606,25 +1823,27 @@
         onManualDiceInputChanged();
       }
 
+      closeTurnModal();
       closeActionModal();
 
       if (data.is_doubles) {
         showToast(`🎉 ¡${activePlayer.name} sacó dobles (${data.dice_1}+${data.dice_2}) y quedó libre avanzando a casilla #${data.new_position}!`);
+        animatePlayerMovement(activePlayer.id, activePlayer.token, 10, data.new_position, async () => {
+          await refreshGameData();
+          if (data.action_required) {
+            displayContextualAction({
+              action_required: data.action_required,
+              action_details: data.action_details || {},
+              landed_tile_name: data.action_details?.tile_name || `Casilla #${data.new_position}`,
+              landed_tile_id: data.action_details?.tile_id || '',
+              extra_turn: false,
+            });
+          }
+        });
       } else {
         showToast(`🔒 No hubo dobles (${data.dice_1}+${data.dice_2}). Intento #${data.jail_turns} cumplido. Turno terminado.`);
         dismissContextualAction();
-      }
-
-      await refreshGameData();
-
-      if (data.action_required) {
-        displayContextualAction({
-          action_required: data.action_required,
-          action_details: data.action_details || {},
-          landed_tile_name: data.action_details?.tile_name || `Casilla #${data.new_position}`,
-          landed_tile_id: data.action_details?.tile_id || '',
-          extra_turn: false,
-        });
+        await refreshGameData();
       }
     } catch (e) {
       showToast(e.message, 'error');
@@ -1660,6 +1879,7 @@
         dismissContextualAction();
       }
 
+      closeTurnModal();
       closeActionModal();
       await refreshGameData();
     } catch (e) {
@@ -1668,120 +1888,151 @@
   }
 
   // ========================================================
-  // ACCIONES CONTEXTUALES INMEDIATAS POR CASILLA (1 SOLO TOQUE)
+  // ACCIONES CONTEXTUALES INMEDIATAS POR CASILLA (MODAL 1 SOLO TOQUE)
   // ========================================================
   function displayContextualAction(rollData) {
-    const actionBox = document.getElementById('contextual-action-box');
+    const landedModal = document.getElementById('landed-action-modal');
+    const content = document.getElementById('landed-modal-content');
     const activePlayer = getActivePlayer();
-    if (!actionBox || !activePlayer) return;
-
-    actionBox.classList.remove('hidden');
+    if (!content || !activePlayer) return;
 
     if (rollData.action_required === 'BUY_PROPERTY') {
       const canAfford = rollData.action_details.can_afford;
-      actionBox.innerHTML = `
-        <div class="text-xs">
-          <span>Caíste en <strong class="text-slate-900 dark:text-white">${rollData.landed_tile_name}</strong></span>
-          <span class="block text-[11px] text-slate-500 font-mono mt-0.5">Precio: $${rollData.action_details.price} • Renta base: $${rollData.action_details.base_rent}</span>
-        </div>
-        <div class="flex items-center justify-center gap-2 pt-1">
-          <button
-            type="button"
-            onclick="executeContextualBuy('${rollData.action_details.tile_id || rollData.landed_tile_id}', '${rollData.landed_tile_name}', ${rollData.action_details.price})"
-            ${!canAfford ? 'disabled' : ''}
-            class="py-1.5 px-4 rounded-xl text-xs font-heading font-bold uppercase tracking-wider text-white ${
-              canAfford ? 'bg-emerald-600 hover:bg-emerald-700 shadow-sm active:scale-95' : 'bg-slate-300 cursor-not-allowed'
-            }"
-          >
-            🏠 Comprar por $${rollData.action_details.price}
-          </button>
-          <button
-            type="button"
-            onclick="dismissContextualAction()"
-            class="py-1.5 px-3 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300"
-          >
-            Pasar
-          </button>
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center text-2xl shadow-xs">
+            🏠
+          </div>
+          <div>
+            <span class="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider">Propiedad Disponible</span>
+            <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">${rollData.landed_tile_name}</h3>
+            <p class="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+              Precio: <strong class="text-emerald-600 dark:text-emerald-400">$${rollData.action_details.price}</strong> • Renta: $${rollData.action_details.base_rent}
+            </p>
+          </div>
+          <div class="pt-2 flex flex-col gap-2">
+            <button
+              type="button"
+              onclick="executeContextualBuy('${rollData.action_details.tile_id || rollData.landed_tile_id}', '${rollData.landed_tile_name}', ${rollData.action_details.price})"
+              ${!canAfford ? 'disabled' : ''}
+              class="w-full py-2.5 px-4 rounded-xl text-xs font-heading font-extrabold uppercase tracking-wider text-white shadow-md ${
+                canAfford ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 active:scale-95' : 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-400'
+              }"
+            >
+              Comprar por $${rollData.action_details.price}
+            </button>
+            <button
+              type="button"
+              onclick="dismissContextualAction()"
+              class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              No Comprar (Pasar)
+            </button>
+          </div>
         </div>
       `;
+      if (landedModal) landedModal.classList.remove('hidden');
     } else if (rollData.action_required === 'RENT_PAID_AUTOMATICALLY') {
-      actionBox.innerHTML = `
-        <div class="text-xs">
-          <span>Caíste en propiedad de <strong class="text-slate-900 dark:text-white">${rollData.action_details.owner_name}</strong></span>
-          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">💸 Renta pagada automáticamente: $${rollData.action_details.rent_amount}</span>
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-2xl shadow-xs">
+            💸
+          </div>
+          <div>
+            <span class="text-[10px] font-mono uppercase font-bold text-amber-600 dark:text-amber-400 tracking-wider">Pago de Renta</span>
+            <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">Propiedad de ${rollData.action_details.owner_name}</h3>
+            <p class="text-xs font-mono font-bold text-red-600 dark:text-red-400 mt-0.5">
+              -$${rollData.action_details.rent_amount} descontado automáticamente
+            </p>
+          </div>
+          <div class="pt-2">
+            ${rollData.extra_turn ? `
+              <button
+                type="button"
+                onclick="dismissContextualAction(); openTurnModal();"
+                class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
+              >
+                ✨ Sacaste Dobles: Tirar Otra Vez
+              </button>
+            ` : `
+              <button
+                type="button"
+                onclick="dismissContextualAction(); advanceTurn();"
+                class="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
+              >
+                Pasar Turno →
+              </button>
+            `}
+          </div>
         </div>
-        ${rollData.extra_turn ? `
-          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
-          </div>
-        ` : `
-          <div class="pt-1">
-            <button
-              type="button"
-              onclick="advanceTurn()"
-              class="py-1.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-bold text-xs uppercase tracking-wider active:scale-95 shadow-sm"
-            >
-              Pasar Turno →
-            </button>
-          </div>
-        `}
       `;
+      if (landedModal) landedModal.classList.remove('hidden');
     } else if (rollData.action_required === 'TAX_PAID_AUTOMATICALLY') {
-      actionBox.innerHTML = `
-        <div class="text-xs">
-          <span>Caíste en <strong class="text-slate-900 dark:text-white">${rollData.landed_tile_name}</strong></span>
-          <span class="block text-red-600 dark:text-red-400 font-mono font-bold mt-0.5">🏛️ Impuesto descontado automáticamente: $${rollData.action_details.tax_amount}</span>
-        </div>
-        ${rollData.extra_turn ? `
-          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 mx-auto flex items-center justify-center text-2xl shadow-xs">
+            🏛️
           </div>
-        ` : `
-          <div class="pt-1">
+          <div>
+            <span class="text-[10px] font-mono uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">Impuesto Oficial</span>
+            <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">${rollData.landed_tile_name}</h3>
+            <p class="text-xs font-mono font-bold text-red-600 dark:text-red-400 mt-0.5">
+              -$${rollData.action_details.tax_amount} pagado a la Banca
+            </p>
+          </div>
+          <div class="pt-2">
+            ${rollData.extra_turn ? `
+              <button
+                type="button"
+                onclick="dismissContextualAction(); openTurnModal();"
+                class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
+              >
+                ✨ Sacaste Dobles: Tirar Otra Vez
+              </button>
+            ` : `
+              <button
+                type="button"
+                onclick="dismissContextualAction(); advanceTurn();"
+                class="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
+              >
+                Pasar Turno →
+              </button>
+            `}
+          </div>
+        </div>
+      `;
+      if (landedModal) landedModal.classList.remove('hidden');
+    } else if (rollData.action_required === 'DRAW_CHANCE' || rollData.action_required === 'DRAW_COMMUNITY_CHEST') {
+      content.innerHTML = `
+        <div class="space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 mx-auto flex items-center justify-center text-2xl shadow-xs">
+            🎴
+          </div>
+          <div>
+            <span class="text-[10px] font-mono uppercase font-bold text-sky-600 dark:text-sky-400 tracking-wider">${rollData.landed_tile_name}</span>
+            <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">Carta de la Suerte</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">${rollData.action_details ? rollData.action_details.description || 'Sigue las instrucciones del juego.' : 'Sigue las instrucciones.'}</p>
+          </div>
+          <div class="pt-2">
             <button
               type="button"
-              onclick="advanceTurn()"
-              class="py-1.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-bold text-xs uppercase tracking-wider active:scale-95 shadow-sm"
+              onclick="dismissContextualAction()"
+              class="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 font-heading font-bold text-xs uppercase tracking-wider shadow-sm"
             >
-              Pasar Turno →
+              Aceptar
             </button>
           </div>
-        `}
-      `;
-    } else if (rollData.action_required === 'WENT_TO_JAIL') {
-      actionBox.innerHTML = `
-        <div class="text-xs text-red-600 dark:text-red-400 font-bold">
-          🚨 ¡Enviado a la Cárcel!
         </div>
-        <p class="text-[11px] text-slate-500">Tu turno ha finalizado en prisión. Turno pasado al siguiente jugador.</p>
       `;
-    } else {
-      actionBox.innerHTML = `
-        <div class="text-xs text-slate-600 dark:text-slate-300">
-          Caíste en <strong class="text-slate-900 dark:text-white">${rollData.landed_tile_name}</strong> (Casilla Neutral).
-        </div>
-        ${rollData.extra_turn ? `
-          <div class="pt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-            ✨ ¡Sacaste dobles! Vuelve a tirar los dados.
-          </div>
-        ` : `
-          <div class="pt-1">
-            <button
-              type="button"
-              onclick="advanceTurn()"
-              class="py-1 px-4 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-xs font-bold text-slate-800 dark:text-slate-200"
-            >
-              Pasar Turno →
-            </button>
-          </div>
-        `}
-      `;
+      if (landedModal) landedModal.classList.remove('hidden');
     }
   }
 
   function dismissContextualAction() {
     const actionBox = document.getElementById('contextual-action-box');
     if (actionBox) actionBox.classList.add('hidden');
+    const landedModal = document.getElementById('landed-action-modal');
+    if (landedModal) landedModal.classList.add('hidden');
   }
 
   async function executeContextualBuy(tileId, tileName, price) {
@@ -2903,6 +3154,8 @@
   }
 
   // Inicialización inmediata
+  setDiceMode('AUTO');
+  updatePlayPauseUI();
   refreshGameData();
 </script>
 {% endblock %}
