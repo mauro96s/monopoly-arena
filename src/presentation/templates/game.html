@@ -555,8 +555,9 @@
       </div>
       <button
         type="button"
-        onclick="closeTurnModal()"
-        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        onclick="pauseAndCloseTurnModal()"
+        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+        title="Cerrar para ver tablero (Pausar)"
       >
         ✕
       </button>
@@ -800,7 +801,11 @@
   function closeTurnModal() {
     const modal = document.getElementById('turn-action-modal');
     if (modal) modal.classList.add('hidden');
-    // Al pulsar la 'X' para inspeccionar el tablero, pausar conservando el turno pendiente
+  }
+
+  function pauseAndCloseTurnModal() {
+    closeTurnModal();
+    // Solo cuando el usuario pulsa 'X' para inspeccionar el tablero se pausa la partida
     isPaused = true;
     updatePlayPauseUI();
   }
@@ -814,7 +819,8 @@
   }
 
   function closeLandedModal() {
-    pauseAndCloseLandedModal();
+    const modal = document.getElementById('landed-action-modal');
+    if (modal) modal.classList.add('hidden');
   }
 
   function parseApiError(err) {
@@ -1756,6 +1762,8 @@
       return;
     }
 
+    isPaused = false;
+    updatePlayPauseUI();
     closeTurnModal();
 
     isRolling = true;
@@ -2210,6 +2218,7 @@
     if (landedModal) landedModal.classList.add('hidden');
     currentDebtState = null;
     pendingLandedRollData = null;
+    isPaused = false;
   }
 
   // ========================================================
@@ -2970,6 +2979,7 @@
         throw new Error(err.detail || 'Error al avanzar turno');
       }
       dismissContextualAction();
+      isPaused = false;
       showToast(`Turno avanzado al siguiente jugador.`);
       await refreshGameData();
     } catch (e) {
