@@ -178,21 +178,21 @@
     <!-- Overlay de Pausa / Reanudar sobre el Tablero (Icono Limpio Centrado) -->
     <div
       id="board-play-overlay"
-      class="absolute inset-0 z-40 bg-slate-950/45 backdrop-blur-xs rounded-3xl flex items-center justify-center transition-all duration-300 hidden"
+      class="absolute inset-0 z-40 bg-slate-950/45 backdrop-blur-xs rounded-3xl flex items-center justify-center transition-all duration-300"
     >
       <button
         type="button"
         id="overlay-play-btn"
         onclick="resumeGameFromOverlay()"
         class="w-20 h-20 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer border-4 border-white/80 dark:border-slate-800/80 group"
-        title="Reanudar Partida y Continuar Turno"
+        title="Comenzar Turno / Continuar Partida"
       >
         <i data-lucide="play" class="w-10 h-10 fill-current translate-x-0.5 group-hover:scale-110 transition-transform"></i>
       </button>
     </div>
 
     <!-- Grilla del Tablero en M (Solo las 40 Casillas Reales) -->
-    <div id="monopoly-board-grid" class="monopoly-board min-w-[1020px] lg:min-w-0 w-full relative">
+    <div id="monopoly-board-grid" class="monopoly-board min-w-[1020px] lg:min-w-0 w-full relative board-dimmed">
       <!-- Las 40 casillas (.board-tile) se inyectan dinámicamente en sus coordenadas exactas -->
     </div>
 
@@ -661,6 +661,15 @@
 <!-- ========================================================================= -->
 <div id="landed-action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm hidden animate-fade-in">
   <div class="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 p-5 space-y-4 text-center">
+    <!-- Botón cerrar con X para inspeccionar el tablero en pausa sin perder la acción -->
+    <button
+      type="button"
+      onclick="pauseAndCloseLandedModal()"
+      class="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+      title="Cerrar para ver tablero (Pausar)"
+    >
+      ✕
+    </button>
     <div id="landed-modal-content" class="space-y-3">
       <!-- Inyectado según la casilla donde aterrizó -->
     </div>
@@ -687,7 +696,8 @@
   let activeBankDirection = 'CREDIT';
   let isRolling = false;
   let diceMode = 'AUTO';
-  let isPaused = false;
+  let isPaused = true;
+  let pendingLandedRollData = null;
 
   function setDiceMode(mode) {
     diceMode = mode;
@@ -732,32 +742,79 @@
     if (window.lucide) lucide.createIcons();
   }
 
+  function openTurnModal() {
+    const modal = document.getElementById('turn-action-modal');
+    if (!modal) return;
+    syncTurnModal();
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function resumeActiveTurnFlow() {
+    isPaused = false;
+    updatePlayPauseUI();
+
+    if (gameState && gameState.status === 'FINISHED') return;
+
+    // 1. Si hay una acción de aterrizaje pendiente (compra, renta, suerte/arca, subasta)
+    if (pendingLandedRollData) {
+      displayContextualAction(pendingLandedRollData);
+      return;
+    }
+
+    // 2. Si hay una deuda pendiente de liquidar
+    if (currentDebtState) {
+      openDebtSettlementView(currentDebtState);
+      return;
+    }
+
+    // 3. Abrir modal de turno del jugador activo (tanto en partidas nuevas como en curso)
+    openTurnModal();
+  }
+
   function togglePlayPause() {
     isPaused = !isPaused;
-    updatePlayPauseUI();
-    if (!isPaused) {
-      openTurnModal();
+    if (isPaused) {
+      // Ocultar cualquier modal temporalmente para ver el tablero con claridad
+      const turnModal = document.getElementById('turn-action-modal');
+      const landedModal = document.getElementById('landed-action-modal');
+      const actionModal = document.getElementById('action-modal');
+      if (turnModal) turnModal.classList.add('hidden');
+      if (landedModal) landedModal.classList.add('hidden');
+      if (actionModal) actionModal.classList.add('hidden');
+      updatePlayPauseUI();
+    } else {
+      updatePlayPauseUI();
+      resumeActiveTurnFlow();
     }
   }
 
   function resumeGameFromOverlay() {
-    isPaused = false;
-    updatePlayPauseUI();
-    openTurnModal();
+    resumeActiveTurnFlow();
   }
 
   function startTurnFromOverlay() {
-    resumeGameFromOverlay();
+    resumeActiveTurnFlow();
   }
 
   function closeTurnModal() {
     const modal = document.getElementById('turn-action-modal');
     if (modal) modal.classList.add('hidden');
-    // Si se cierra el modal de turno voluntariamente antes de tirar, pausar mostrando el overlay limpio
-    if (gameState && !gameState.has_rolled_dice) {
-      isPaused = true;
-      updatePlayPauseUI();
-    }
+    // Al pulsar la 'X' para inspeccionar el tablero, pausar conservando el turno pendiente
+    isPaused = true;
+    updatePlayPauseUI();
+  }
+
+  function pauseAndCloseLandedModal() {
+    const modal = document.getElementById('landed-action-modal');
+    if (modal) modal.classList.add('hidden');
+    // Conserva pendingLandedRollData intacto para reanudar con Play
+    isPaused = true;
+    updatePlayPauseUI();
+  }
+
+  function closeLandedModal() {
+    pauseAndCloseLandedModal();
   }
 
   function parseApiError(err) {
@@ -1179,13 +1236,19 @@
       renderLedger();
       updatePlayPauseUI();
 
-      // Flujo continuo automático: si no está pausada y no hay modales en curso, abrir turno activo
+      // Flujo continuo automático: si no está pausada y no hay modales en curso, abrir turno activo o acción pendiente
       const landedModal = document.getElementById('landed-action-modal');
       const isLandedOpen = landedModal && !landedModal.classList.contains('hidden');
       const actionModal = document.getElementById('action-modal');
       const isActionOpen = actionModal && !actionModal.classList.contains('hidden');
-      if (!isPaused && !isLandedOpen && !isActionOpen && !isRolling && gameState && gameState.status !== 'FINISHED' && !gameState.has_rolled_dice) {
-        openTurnModal();
+      const turnModal = document.getElementById('turn-action-modal');
+      const isTurnOpen = turnModal && !turnModal.classList.contains('hidden');
+      if (!isPaused && !isLandedOpen && !isActionOpen && !isTurnOpen && !isRolling && gameState && gameState.status !== 'FINISHED') {
+        if (pendingLandedRollData) {
+          displayContextualAction(pendingLandedRollData);
+        } else if (!gameState.has_rolled_dice) {
+          openTurnModal();
+        }
       }
 
       if (window.lucide) {
@@ -1900,6 +1963,7 @@
   // ACCIONES CONTEXTUALES INMEDIATAS POR CASILLA (MODAL 1 SOLO TOQUE)
   // ========================================================
   function displayContextualAction(rollData) {
+    pendingLandedRollData = rollData;
     const landedModal = document.getElementById('landed-action-modal');
     const content = document.getElementById('landed-modal-content');
     const activePlayer = getActivePlayer();
@@ -2145,6 +2209,7 @@
     const landedModal = document.getElementById('landed-action-modal');
     if (landedModal) landedModal.classList.add('hidden');
     currentDebtState = null;
+    pendingLandedRollData = null;
   }
 
   // ========================================================
