@@ -231,9 +231,11 @@ class RollDiceResponse(BaseModel):
 
 
 class AuctionPropertyRequest(BaseModel):
-    winner_player_id: int
+    winner_player_id: Optional[int] = None
+    buyer_player_id: Optional[int] = None
     tile_id: str
-    winning_bid: int
+    winning_bid: Optional[int] = None
+    bid_amount: Optional[int] = None
     auto_advance_turn: Optional[bool] = True
 
 

@@ -224,11 +224,24 @@ def auction_property(
     use_case: AuctionPropertyUseCase = Depends(get_auction_property_use_case),
 ):
     """Adjudica una propiedad no adquirida tras una subasta oficial entre jugadores."""
+    winner_id = payload.winner_player_id if payload.winner_player_id is not None else payload.buyer_player_id
+    if winner_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Se requiere el identificador del ganador (winner_player_id o buyer_player_id)."
+        )
+    bid = payload.winning_bid if payload.winning_bid is not None else payload.bid_amount
+    if bid is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Se requiere el monto de la puja (winning_bid o bid_amount)."
+        )
+
     dto = AuctionPropertyInputDTO(
         game_id=game_id,
-        winner_player_id=payload.winner_player_id,
+        winner_player_id=winner_id,
         tile_id=payload.tile_id,
-        winning_bid=payload.winning_bid,
+        winning_bid=bid,
         auto_advance_turn=bool(payload.auto_advance_turn),
     )
     try:
