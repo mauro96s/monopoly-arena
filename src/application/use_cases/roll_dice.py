@@ -6,7 +6,7 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.models.transaction import Transaction
-from src.domain.models.enums import TransactionType, TileType, GameStatus
+from src.domain.models.enums import TransactionType, TileType, GameStatus, PropertyGroup
 from src.domain.rules.rule_registry import BoardRuleRegistry
 from src.domain.exceptions import (
     GameNotFoundError,
@@ -266,12 +266,29 @@ class RollDiceUseCase:
                     "tile_name": tile_def.name,
                 }
             elif prop.owner_id == player.id:
-                # Propiedad propia
+                # Propiedad propia: verificar si tiene el monopolio completo para construir
+                all_props = self._property_repo.list_by_owner(game.id, player.id)
+                has_monopoly = (
+                    BoardRuleRegistry.is_monopoly_owned(all_props, tile_def.group, game.variant)
+                    if tile_def.group else False
+                )
+                is_buildable = (
+                    has_monopoly
+                    and (tile_def.group not in (PropertyGroup.RAILROAD, PropertyGroup.UTILITY))
+                    and (prop.hotels_count == 0)
+                )
+                house_cost = tile_def.house_cost or 50
+
                 action_required = "OWNED_BY_SELF"
                 action_details = {
                     "houses_count": prop.houses_count,
                     "hotels_count": prop.hotels_count,
                     "tile_name": tile_def.name,
+                    "tile_id": tile_def.tile_id,
+                    "has_monopoly": has_monopoly,
+                    "can_build": is_buildable,
+                    "house_cost": house_cost,
+                    "can_afford_build": player.can_afford(house_cost) if is_buildable else False,
                 }
             else:
                 # Propiedad de un rival
@@ -283,8 +300,10 @@ class RollDiceUseCase:
                     owner = self._player_repo.get_by_id(prop.owner_id)
                     all_props = self._property_repo.list_by_owner(game.id, prop.owner_id)
                     calculated_rent = tile_strategy.calculate_rent(prop, all_props, total_roll)
+                    can_afford = player.can_afford(calculated_rent)
+                    shortage = max(0, calculated_rent - player.money)
 
-                    # Cobro automático de renta
+                    # Cobro de renta (o hasta el saldo disponible si es insuficiente)
                     rent_to_pay = min(player.money, calculated_rent)
                     if rent_to_pay > 0:
                         player.deduct_money(rent_to_pay)
@@ -300,7 +319,10 @@ class RollDiceUseCase:
                             turn_number=game.current_turn,
                             transaction_type=TransactionType.PAY_RENT,
                             amount=rent_to_pay,
-                            description=f"💸 {player.name} cayó en {tile_def.name} y pagó ${rent_to_pay} de renta a {owner.name if owner else 'Rival'}",
+                            description=(
+                                f"💸 {player.name} cayó en {tile_def.name} y pagó ${rent_to_pay} de renta a {owner.name if owner else 'Rival'}"
+                                + (f" (Saldo insuficiente: faltan ${shortage} por hipotecas)" if shortage > 0 else "")
+                            ),
                             source_player_id=player.id,
                             target_player_id=owner.id if owner else None,
                             tile_id=tile_def.tile_id,
@@ -312,14 +334,20 @@ class RollDiceUseCase:
                     action_details = {
                         "owner_id": prop.owner_id,
                         "owner_name": owner.name if owner else "Rival",
-                        "rent_amount": rent_to_pay,
+                        "rent_amount": calculated_rent,
+                        "rent_paid": rent_to_pay,
+                        "can_afford": can_afford,
+                        "shortage": shortage,
                         "tile_name": tile_def.name,
+                        "tile_id": tile_def.tile_id,
                     }
 
         # CASO C: Casilla de Impuestos (TAX)
         elif tile_def.tile_type == TileType.TAX:
-            # ¡DESCONTAR AUTOMÁTICAMENTE EL MONTO FIJO!
+            # Descontar monto de impuestos
             tax_amount = tile_def.price or 100
+            can_afford = player.can_afford(tax_amount)
+            shortage = max(0, tax_amount - player.money)
             tax_to_pay = min(player.money, tax_amount)
             if tax_to_pay > 0:
                 player.deduct_money(tax_to_pay)
@@ -342,11 +370,24 @@ class RollDiceUseCase:
 
             action_required = "TAX_PAID_AUTOMATICALLY"
             action_details = {
-                "tax_amount": tax_to_pay,
+                "tax_amount": tax_amount,
+                "tax_paid": tax_to_pay,
+                "can_afford": can_afford,
+                "shortage": shortage,
                 "tile_name": tile_def.name,
+                "tile_id": tile_def.tile_id,
             }
 
-        # CASO D: Casilla Neutral (Salida, Visitas, Parking)
+        # CASO D: Suerte o Caja de Comunidad
+        elif tile_def.tile_type in (TileType.CHANCE, TileType.COMMUNITY_CHEST):
+            action_required = "CHANCE_OR_COMMUNITY"
+            action_details = {
+                "tile_type": tile_def.tile_type.value,
+                "tile_name": tile_def.name,
+                "description": f"Has caído en {tile_def.name}. Ajusta saldo con la Banca o continúa el juego.",
+            }
+
+        # CASO E: Casilla Neutral (Salida, Visitas, Parking)
         else:
             action_required = "NEUTRAL"
             action_details = {"tile_name": tile_def.name}

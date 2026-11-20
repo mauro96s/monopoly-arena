@@ -1,4 +1,5 @@
 from src.application.use_cases.buy_property import BuyPropertyUseCase
+from src.application.use_cases.auction_property import AuctionPropertyUseCase
 from src.application.use_cases.transfer_money import TransferMoneyUseCase
 from src.application.use_cases.pay_rent import PayRentUseCase
 from src.application.use_cases.build_house import BuildHouseUseCase
@@ -10,6 +11,7 @@ from src.application.use_cases.finish_game import FinishGameUseCase, FinishGameO
 
 __all__ = [
     "BuyPropertyUseCase",
+    "AuctionPropertyUseCase",
     "TransferMoneyUseCase",
     "PayRentUseCase",
     "BuildHouseUseCase",

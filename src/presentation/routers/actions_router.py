@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from src.presentation.schemas.action_schemas import (
     BuyPropertyRequest,
     BuyPropertyResponse,
+    AuctionPropertyRequest,
+    AuctionPropertyResponse,
     PayRentRequest,
     PayRentResponse,
     BuildHouseRequest,
@@ -22,6 +24,7 @@ from src.presentation.schemas.action_schemas import (
 )
 from src.application.dtos.action_dtos import (
     BuyPropertyInputDTO,
+    AuctionPropertyInputDTO,
     PayRentInputDTO,
     BuildHouseInputDTO,
     MortgageInputDTO,
@@ -32,6 +35,7 @@ from src.application.dtos.action_dtos import (
 )
 from src.application.use_cases import (
     BuyPropertyUseCase,
+    AuctionPropertyUseCase,
     PayRentUseCase,
     BuildHouseUseCase,
     MortgagePropertyUseCase,
@@ -46,6 +50,7 @@ from src.presentation.dependencies import (
     get_game_repository,
     get_player_repository,
     get_buy_property_use_case,
+    get_auction_property_use_case,
     get_pay_rent_use_case,
     get_build_house_use_case,
     get_mortgage_property_use_case,
@@ -200,6 +205,42 @@ def buy_property(
             tile_id=result.tile_id,
             tile_name=result.tile_name,
             price_paid=result.price_paid,
+            remaining_balance=result.remaining_balance,
+            transaction_id=result.transaction_id,
+            current_turn=result.current_turn,
+            current_player_index=result.current_player_index,
+        )
+    except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (PropertyAlreadyOwnedError, InsufficientFundsError, InvalidGameActionError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/auction", response_model=AuctionPropertyResponse, status_code=status.HTTP_200_OK)
+@router.post("/auction-property", response_model=AuctionPropertyResponse, status_code=status.HTTP_200_OK)
+def auction_property(
+    game_id: int,
+    payload: AuctionPropertyRequest,
+    use_case: AuctionPropertyUseCase = Depends(get_auction_property_use_case),
+):
+    """Adjudica una propiedad no adquirida tras una subasta oficial entre jugadores."""
+    dto = AuctionPropertyInputDTO(
+        game_id=game_id,
+        winner_player_id=payload.winner_player_id,
+        tile_id=payload.tile_id,
+        winning_bid=payload.winning_bid,
+        auto_advance_turn=bool(payload.auto_advance_turn),
+    )
+    try:
+        result = use_case.execute(dto)
+        return AuctionPropertyResponse(
+            success=True,
+            game_id=result.game_id,
+            winner_player_id=result.winner_player_id,
+            winner_name=result.winner_name,
+            tile_id=result.tile_id,
+            tile_name=result.tile_name,
+            winning_bid=result.winning_bid,
             remaining_balance=result.remaining_balance,
             transaction_id=result.transaction_id,
             current_turn=result.current_turn,

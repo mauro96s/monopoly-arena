@@ -10,6 +10,7 @@ from src.infrastructure.repositories.sql_player_repository import SqlPlayerRepos
 from src.infrastructure.repositories.sql_property_repository import SqlPropertyRepository
 from src.infrastructure.repositories.sql_transaction_repository import SqlTransactionRepository
 from src.application.use_cases.buy_property import BuyPropertyUseCase
+from src.application.use_cases.auction_property import AuctionPropertyUseCase
 from src.application.use_cases.transfer_money import TransferMoneyUseCase
 from src.application.use_cases.pay_rent import PayRentUseCase
 from src.application.use_cases.build_house import BuildHouseUseCase
@@ -45,6 +46,20 @@ def get_buy_property_use_case(
     transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
 ) -> BuyPropertyUseCase:
     return BuyPropertyUseCase(
+        game_repo=game_repo,
+        player_repo=player_repo,
+        property_repo=property_repo,
+        transaction_repo=transaction_repo,
+    )
+
+
+def get_auction_property_use_case(
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+    property_repo: PropertyRepositoryProtocol = Depends(get_property_repository),
+    transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
+) -> AuctionPropertyUseCase:
+    return AuctionPropertyUseCase(
         game_repo=game_repo,
         player_repo=player_repo,
         property_repo=property_repo,

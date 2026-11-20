@@ -206,3 +206,27 @@ class RollDiceOutputDTO:
     current_turn: int = 1
     current_player_index: int = 0
     transaction_id: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class AuctionPropertyInputDTO:
+    game_id: int
+    winner_player_id: int
+    tile_id: str
+    winning_bid: int
+    auto_advance_turn: bool = True
+
+
+@dataclass(frozen=True)
+class AuctionPropertyOutputDTO:
+    success: bool
+    game_id: int
+    winner_player_id: int
+    winner_name: str
+    tile_id: str
+    tile_name: str
+    winning_bid: int
+    remaining_balance: int
+    transaction_id: int
+    current_turn: int
+    current_player_index: int
