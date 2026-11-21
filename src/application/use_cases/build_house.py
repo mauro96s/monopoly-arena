@@ -4,7 +4,6 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.rules.rule_registry import BoardRuleRegistry
-from src.domain.rules.classic_rules import CLASSIC_GROUP_TILES
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import TransactionType, TileType
 from src.domain.exceptions import (
@@ -54,7 +53,7 @@ class BuildHouseUseCase:
 
         # Verificar Monopolio completo
         owner_properties = self._property_repo.list_by_owner(game.id, player.id)
-        group_tiles = CLASSIC_GROUP_TILES.get(tile_strategy.definition.group, set())
+        group_tiles = BoardRuleRegistry.get_group_tile_ids(game.variant, tile_strategy.definition.group)
         owned_ids = {p.tile_id for p in owner_properties}
         if not group_tiles.issubset(owned_ids):
             raise InvalidGameActionError(

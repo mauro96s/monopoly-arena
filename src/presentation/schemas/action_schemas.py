@@ -179,6 +179,7 @@ class FinishGameResponse(BaseModel):
 class CreateGameRequest(BaseModel):
     code: str = Field(..., min_length=3, max_length=16, description="Código de sala (ej: 'SALA123')")
     variant: Optional[str] = "CLASSIC"
+    theme_id: Optional[str] = Field("classic", description="ID del tema visual (ej: 'classic', 'pokemon', 'harry_potter')")
 
 
 class AddPlayerRequest(BaseModel):

@@ -890,8 +890,8 @@
     }
   }
 
-  // --- NOMBRES ABREVIADOS EN UNA SOLA LÍNEA ---
-  const OFFICIAL_SHORT_NAMES = {
+  // --- NOMBRES ABREVIADOS EN UNA SOLA LÍNEA (Inicializado como fallback seguro, sobreescrito por el tema activo) ---
+  let OFFICIAL_SHORT_NAMES = {
     0: 'Salida',
     1: 'Mediterráneo',
     2: 'Caja Comunidad',
@@ -936,6 +936,7 @@
 
   function getShortTileName(tile) {
     if (!tile) return '';
+    if (tile.short_name) return tile.short_name;
     if (OFFICIAL_SHORT_NAMES[tile.position] !== undefined) {
       return OFFICIAL_SHORT_NAMES[tile.position];
     }
@@ -1483,8 +1484,8 @@
     if (modal) modal.classList.add('hidden');
   }
 
-  // Catálogo oficial de grupos de Monopoly con Iconos Lucide
-  const OFFICIAL_GROUPS = [
+  // Catálogo oficial de grupos de Monopoly con Iconos Lucide (Fallback seguro, sincronizado dinámicamente con el tema)
+  let OFFICIAL_GROUPS = [
     { key: 'BROWN', name: 'Marrón', hex: '#8B4513', icon: 'home' },
     { key: 'LIGHT_BLUE', name: 'Celeste', hex: '#38BDF8', icon: 'cloud' },
     { key: 'PINK', name: 'Rosa', hex: '#EC4899', icon: 'heart' },
@@ -1496,6 +1497,34 @@
     { key: 'RAILROAD', name: 'Estaciones', hex: '#334155', icon: 'train' },
     { key: 'UTILITY', name: 'Servicios', hex: '#0E7490', icon: 'zap' },
   ];
+
+  let activeThemeData = null;
+
+  async function syncActiveTheme() {
+    try {
+      const res = await fetch(`/api/v1/games/${GAME_ID}/theme`);
+      if (!res.ok) return;
+      const theme = await res.json();
+      activeThemeData = theme;
+      if (theme.groups && Array.isArray(theme.groups)) {
+        OFFICIAL_GROUPS = theme.groups.map(g => ({
+          key: g.key,
+          name: g.name,
+          hex: g.color_hex,
+          icon: g.icon || 'home'
+        }));
+      }
+      if (theme.tiles) {
+        for (const [tid, t] of Object.entries(theme.tiles)) {
+          if (t.position !== undefined && t.short_name) {
+            OFFICIAL_SHORT_NAMES[t.position] = t.short_name;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Tema dinámico opcional no disponible:', e);
+    }
+  }
 
   // Mapeo Oficial de Casillas 0 a 39 en el Circuito en M de 11x6
   const TILE_GRID_POSITIONS = {
@@ -1873,6 +1902,15 @@
       boardTiles = await tilesRes.json();
       propertyStates = await propsRes.json();
       transactionsData = await txRes.json();
+
+      // Sincronizar dinámicamente nombres cortos desde las casillas del backend
+      if (Array.isArray(boardTiles)) {
+        boardTiles.forEach(t => {
+          if (t.short_name && t.position !== undefined) {
+            OFFICIAL_SHORT_NAMES[t.position] = t.short_name;
+          }
+        });
+      }
 
       renderVisualBoard();
       renderCenterHUD();
@@ -5024,9 +5062,11 @@
     document.getElementById('podium-modal').classList.add('hidden');
   }
 
-  // Inicialización inmediata
+  // Inicialización inmediata sincronizando tema y estado
   setDiceMode('AUTO');
   updatePlayPauseUI();
-  refreshGameData();
+  syncActiveTheme().finally(() => {
+    refreshGameData();
+  });
 </script>
 {% endblock %}

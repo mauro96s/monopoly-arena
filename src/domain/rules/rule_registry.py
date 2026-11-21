@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from src.domain.models.enums import GameVariant, TileType, PropertyGroup
 from src.domain.models.property import PropertyState
 from src.domain.rules.base_strategy import TileActionStrategy, TileDefinition
@@ -120,10 +120,34 @@ class BoardRuleRegistry:
         return strategy.definition if strategy else None
 
     @classmethod
+    def get_board_groups(cls, variant: GameVariant = GameVariant.CLASSIC) -> Dict[PropertyGroup, Set[str]]:
+        """Obtiene un mapa de todos los grupos con sus IDs de casillas para la variante indicada."""
+        board = cls.get_board(variant)
+        groups_map: Dict[PropertyGroup, Set[str]] = {}
+        for strategy in board.values():
+            grp = strategy.definition.group
+            if grp not in groups_map:
+                groups_map[grp] = set()
+            groups_map[grp].add(strategy.definition.tile_id)
+        return groups_map
+
+    @classmethod
+    def get_group_tile_ids(cls, variant: GameVariant, group: PropertyGroup) -> Set[str]:
+        """
+        Obtiene el conjunto de tile_ids que componen un grupo de propiedades en una variante dada.
+        Desacopla los casos de uso de constantes estáticas concretas (DIP y OCP).
+        """
+        board = cls.get_board(variant)
+        return {
+            strategy.definition.tile_id
+            for strategy in board.values()
+            if strategy.definition.group == group
+        }
+
+    @classmethod
     def is_monopoly_owned(cls, owner_properties: List[PropertyState], group: PropertyGroup, variant: GameVariant = GameVariant.CLASSIC) -> bool:
         """Determina si el jugador posee todas las propiedades del grupo especificado."""
-        from src.domain.rules.classic_rules import CLASSIC_GROUP_TILES
-        required_tiles = CLASSIC_GROUP_TILES.get(group, set())
+        required_tiles = cls.get_group_tile_ids(variant, group)
         if not required_tiles:
             return False
         owned_ids = {p.tile_id for p in owner_properties}

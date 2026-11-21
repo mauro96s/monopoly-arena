@@ -1,4 +1,5 @@
 from typing import Optional
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.models.game import Game
@@ -8,12 +9,22 @@ from src.infrastructure.orm.models import GameModel
 class SqlGameRepository(GameRepositoryProtocol):
     def __init__(self, session: Session):
         self._session = session
+        self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        """Asegura de forma no destructiva que las columnas nuevas existan en bases de datos SQLite existentes."""
+        try:
+            self._session.execute(text("ALTER TABLE games ADD COLUMN theme_id VARCHAR(32) DEFAULT 'classic'"))
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
 
     def _to_domain(self, model: GameModel) -> Game:
         return Game(
             id=model.id,
             code=model.code,
             variant=model.variant,
+            theme_id=getattr(model, "theme_id", "classic") or "classic",
             status=model.status,
             current_turn=model.current_turn,
             current_player_index=model.current_player_index,
@@ -39,6 +50,7 @@ class SqlGameRepository(GameRepositoryProtocol):
             model = GameModel(
                 code=game.code,
                 variant=game.variant,
+                theme_id=game.theme_id,
                 status=game.status,
                 current_turn=game.current_turn,
                 current_player_index=game.current_player_index,
@@ -55,6 +67,7 @@ class SqlGameRepository(GameRepositoryProtocol):
             model = self._session.query(GameModel).filter(GameModel.id == game.id).first()
             if model:
                 model.variant = game.variant
+                model.theme_id = game.theme_id
                 model.status = game.status
                 model.current_turn = game.current_turn
                 model.current_player_index = game.current_player_index

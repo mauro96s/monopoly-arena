@@ -13,6 +13,7 @@ class Game:
     id: Optional[int]
     code: str
     variant: GameVariant = GameVariant.CLASSIC
+    theme_id: str = "classic"
     status: GameStatus = GameStatus.WAITING
     current_turn: int = 1
     current_player_index: int = 0

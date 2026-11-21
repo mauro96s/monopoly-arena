@@ -15,6 +15,7 @@ class GameModel(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(16), unique=True, index=True, nullable=False)
     variant = Column(SQLEnum(GameVariant), default=GameVariant.CLASSIC, nullable=False)
+    theme_id = Column(String(32), default="classic", nullable=False)
     status = Column(SQLEnum(GameStatus), default=GameStatus.WAITING, nullable=False)
     current_turn = Column(Integer, default=1, nullable=False)
     current_player_index = Column(Integer, default=0, nullable=False)

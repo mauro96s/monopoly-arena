@@ -20,6 +20,7 @@ from src.domain.models.player import Player
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import GameStatus, GameVariant, TransactionType
 from src.domain.rules.rule_registry import BoardRuleRegistry
+from src.domain.themes import ThemeRegistry, ThemeDefinition
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
@@ -28,6 +29,7 @@ class GameResponse(BaseModel):
     id: int
     code: str
     variant: str
+    theme_id: str = "classic"
     status: str
     current_turn: int
     current_player_index: int
@@ -71,6 +73,7 @@ class TransactionResponse(BaseModel):
 class BoardTileResponse(BaseModel):
     tile_id: str
     name: str
+    short_name: Optional[str] = None
     position: int
     tile_type: str
     group: str
@@ -79,6 +82,35 @@ class BoardTileResponse(BaseModel):
     house_cost: int = 0
     rent_matrix: List[int] = []
     can_be_purchased: bool
+    color_hex: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class GroupThemeSchema(BaseModel):
+    key: str
+    name: str
+    color_hex: str
+    text_color: str = "#FFFFFF"
+    icon: str = "home"
+
+
+class TileThemeSchema(BaseModel):
+    tile_id: str
+    position: int
+    name: str
+    short_name: str
+    icon: Optional[str] = None
+    banner_color: Optional[str] = None
+
+
+class ThemeResponse(BaseModel):
+    theme_id: str
+    name: str
+    description: str
+    currency_symbol: str
+    currency_code: str
+    groups: List[GroupThemeSchema]
+    tiles: dict[str, TileThemeSchema]
 
 
 class RentPreviewResponse(BaseModel):
@@ -124,12 +156,14 @@ def create_game(
         raise HTTPException(status_code=400, detail="El código de partida ya existe.")
 
     variant = GameVariant(payload.variant.upper()) if payload.variant else GameVariant.CLASSIC
-    new_game = Game(id=None, code=payload.code, variant=variant, status=GameStatus.WAITING)
+    theme_id = payload.theme_id or "classic"
+    new_game = Game(id=None, code=payload.code, variant=variant, theme_id=theme_id, status=GameStatus.WAITING)
     saved = game_repo.save(new_game)
     return GameResponse(
         id=saved.id,  # type: ignore
         code=saved.code,
         variant=saved.variant.value,
+        theme_id=saved.theme_id,
         status=saved.status.value,
         current_turn=saved.current_turn,
         current_player_index=saved.current_player_index,
@@ -150,6 +184,7 @@ def get_game(
         id=game.id,  # type: ignore
         code=game.code,
         variant=game.variant.value,
+        theme_id=getattr(game, "theme_id", "classic") or "classic",
         status=game.status.value,
         current_turn=game.current_turn,
         current_player_index=game.current_player_index,
@@ -207,6 +242,7 @@ def advance_turn(
         id=saved.id,  # type: ignore
         code=saved.code,
         variant=saved.variant.value,
+        theme_id=getattr(saved, "theme_id", "classic") or "classic",
         status=saved.status.value,
         current_turn=saved.current_turn,
         current_player_index=saved.current_player_index,
@@ -261,24 +297,43 @@ def get_game_board_tiles(
     purchasable = {t.tile_id for t in BoardRuleRegistry.get_purchasable_tiles(game.variant)}
     all_strategies = BoardRuleRegistry._variants.get(game.variant) or BoardRuleRegistry._variants[GameVariant.CLASSIC]
 
+    # Cargar tema activo de la partida
+    theme = ThemeRegistry.get_theme(getattr(game, "theme_id", "classic") or "classic")
+
     # Ordenar por posición 0 a 39
     sorted_tiles = sorted(all_strategies.values(), key=lambda s: s.definition.position)
 
-    return [
-        BoardTileResponse(
-            tile_id=s.definition.tile_id,
-            name=s.definition.name,
-            position=s.definition.position,
-            tile_type=s.definition.tile_type.value,
-            group=s.definition.group.value,
-            price=s.definition.price,
-            base_rent=s.definition.base_rent,
-            house_cost=s.definition.house_cost,
-            rent_matrix=list(s.definition.rent_matrix),
-            can_be_purchased=s.definition.tile_id in purchasable,
+    tiles_response: List[BoardTileResponse] = []
+    for s in sorted_tiles:
+        tile_meta = theme.get_tile(s.definition.tile_id)
+        grp_meta = theme.get_group(s.definition.group.value)
+
+        # Nombre enriquecido por el tema
+        disp_name = tile_meta.name if tile_meta else s.definition.name
+        short_name = tile_meta.short_name if tile_meta else disp_name
+
+        # Color de franja / casillero
+        color_hex = (tile_meta.banner_color if tile_meta and tile_meta.banner_color else None) or (grp_meta.color_hex if grp_meta else None)
+        icon = (tile_meta.icon if tile_meta and tile_meta.icon else None) or (grp_meta.icon if grp_meta else None)
+
+        tiles_response.append(
+            BoardTileResponse(
+                tile_id=s.definition.tile_id,
+                name=disp_name,
+                short_name=short_name,
+                position=s.definition.position,
+                tile_type=s.definition.tile_type.value,
+                group=s.definition.group.value,
+                price=s.definition.price,
+                base_rent=s.definition.base_rent,
+                house_cost=s.definition.house_cost,
+                rent_matrix=list(s.definition.rent_matrix),
+                can_be_purchased=s.definition.tile_id in purchasable,
+                color_hex=color_hex,
+                icon=icon,
+            )
         )
-        for s in sorted_tiles
-    ]
+    return tiles_response
 
 
 @router.get("/{game_id}/calculate-rent/{tile_id}", response_model=RentPreviewResponse)
@@ -309,8 +364,7 @@ def calculate_rent_preview(
     owner_properties = prop_repo.list_by_owner(game_id, owner.id)  # type: ignore
     rent_amount = tile_strategy.calculate_rent(prop_state, owner_properties, dice_roll)
 
-    from src.domain.rules.classic_rules import CLASSIC_GROUP_TILES
-    group_tiles = CLASSIC_GROUP_TILES.get(tile_strategy.definition.group, set())
+    group_tiles = BoardRuleRegistry.get_group_tile_ids(game.variant, tile_strategy.definition.group)
     owned_ids = {p.tile_id for p in owner_properties}
     is_monopoly_doubled = bool(
         prop_state.houses_count == 0
@@ -331,6 +385,62 @@ def calculate_rent_preview(
         hotels_count=prop_state.hotels_count,
         is_mortgaged=prop_state.is_mortgaged,
     )
+
+
+@router.get("/{game_id}/theme", response_model=ThemeResponse)
+def get_game_theme(
+    game_id: int,
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+):
+    """Retorna la configuración completa del tema visual activo de la partida."""
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+    theme = ThemeRegistry.get_theme(getattr(game, "theme_id", "classic") or "classic")
+    return ThemeResponse(
+        theme_id=theme.theme_id,
+        name=theme.name,
+        description=theme.description,
+        currency_symbol=theme.currency_symbol,
+        currency_code=theme.currency_code,
+        groups=[
+            GroupThemeSchema(
+                key=g.key,
+                name=g.name,
+                color_hex=g.color_hex,
+                text_color=g.text_color,
+                icon=g.icon,
+            )
+            for g in theme.groups
+        ],
+        tiles={
+            tid: TileThemeSchema(
+                tile_id=t.tile_id,
+                position=t.position,
+                name=t.name,
+                short_name=t.short_name,
+                icon=t.icon,
+                banner_color=t.banner_color,
+            )
+            for tid, t in theme.tiles.items()
+        },
+    )
+
+
+@router.get("/themes/available")
+def list_available_themes():
+    """Lista todos los temas registrados disponibles para nuevas partidas."""
+    return [
+        {
+            "theme_id": t.theme_id,
+            "name": t.name,
+            "description": t.description,
+            "currency_symbol": t.currency_symbol,
+            "currency_code": t.currency_code,
+        }
+        for t in ThemeRegistry.list_themes()
+    ]
 
 
 @router.post("/{game_id}/players", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
