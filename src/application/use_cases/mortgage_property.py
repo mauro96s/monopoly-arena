@@ -55,9 +55,18 @@ class MortgagePropertyUseCase:
         unmortgage_cost = int(mortgage_value * 1.1)
 
         if not prop_state.is_mortgaged:
-            # Hipotecar: no debe tener casas ni hoteles
-            if prop_state.houses_count > 0 or prop_state.hotels_count > 0:
-                raise InvalidGameActionError("Debes vender las casas u hoteles antes de hipotecar.")
+            # Hipotecar: regla oficial, ninguna propiedad del grupo de color puede tener casas ni hoteles construidos
+            group_tiles = BoardRuleRegistry.get_group_tile_ids(game.variant, tile_strategy.definition.group)
+            group_props = [self._property_repo.get_by_tile(game.id, tid) for tid in group_tiles]
+            for gp in group_props:
+                if gp and (gp.houses_count > 0 or gp.hotels_count > 0):
+                    gp_strat = BoardRuleRegistry.get_strategy(game.variant, gp.tile_id)
+                    gp_name = gp_strat.definition.name if gp_strat else gp.tile_id
+                    raise InvalidGameActionError(
+                        f"No se puede hipotecar '{tile_strategy.definition.name}': "
+                        f"el grupo {tile_strategy.definition.group.value} tiene edificios construidos (en '{gp_name}'). "
+                        "Debes vender todas las casas y hoteles de todas las calles del grupo antes de hipotecar."
+                    )
 
             prop_state.is_mortgaged = True
             player.add_money(mortgage_value)

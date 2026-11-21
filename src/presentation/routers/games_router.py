@@ -35,6 +35,8 @@ class GameResponse(BaseModel):
     current_player_index: int
     has_rolled_dice: bool = False
     consecutive_doubles: int = 0
+    available_houses: int = 32
+    available_hotels: int = 12
 
 
 class PlayerResponse(BaseModel):
@@ -169,6 +171,8 @@ def create_game(
         current_player_index=saved.current_player_index,
         has_rolled_dice=saved.has_rolled_dice,
         consecutive_doubles=saved.consecutive_doubles,
+        available_houses=saved.available_houses,
+        available_hotels=saved.available_hotels,
     )
 
 
@@ -190,6 +194,8 @@ def get_game(
         current_player_index=game.current_player_index,
         has_rolled_dice=game.has_rolled_dice,
         consecutive_doubles=game.consecutive_doubles,
+        available_houses=game.available_houses,
+        available_hotels=game.available_hotels,
     )
 
 
@@ -248,6 +254,8 @@ def advance_turn(
         current_player_index=saved.current_player_index,
         has_rolled_dice=saved.has_rolled_dice,
         consecutive_doubles=saved.consecutive_doubles,
+        available_houses=saved.available_houses,
+        available_hotels=saved.available_hotels,
     )
 
 

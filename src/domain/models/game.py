@@ -20,6 +20,8 @@ class Game:
     created_at: datetime = field(default_factory=get_utc_now)
     has_rolled_dice: bool = False
     consecutive_doubles: int = 0
+    available_houses: int = 32
+    available_hotels: int = 12
 
     def advance_turn(self, total_players: int) -> None:
         if total_players <= 0:

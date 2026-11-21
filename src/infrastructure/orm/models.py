@@ -21,6 +21,8 @@ class GameModel(Base):
     current_player_index = Column(Integer, default=0, nullable=False)
     has_rolled_dice = Column(Boolean, default=False, nullable=False)
     consecutive_doubles = Column(Integer, default=0, nullable=False)
+    available_houses = Column(Integer, default=32, nullable=False)
+    available_hotels = Column(Integer, default=12, nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
     # Relaciones

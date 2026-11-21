@@ -13,13 +13,20 @@ class SqlGameRepository(GameRepositoryProtocol):
 
     def _ensure_columns(self) -> None:
         """Asegura de forma no destructiva que las columnas nuevas existan en bases de datos SQLite existentes."""
-        try:
-            self._session.execute(text("ALTER TABLE games ADD COLUMN theme_id VARCHAR(32) DEFAULT 'classic'"))
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
+        for col_def in [
+            "theme_id VARCHAR(32) DEFAULT 'classic'",
+            "available_houses INTEGER DEFAULT 32",
+            "available_hotels INTEGER DEFAULT 12",
+        ]:
+            try:
+                self._session.execute(text(f"ALTER TABLE games ADD COLUMN {col_def}"))
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
 
     def _to_domain(self, model: GameModel) -> Game:
+        houses = getattr(model, "available_houses", 32)
+        hotels = getattr(model, "available_hotels", 12)
         return Game(
             id=model.id,
             code=model.code,
@@ -31,6 +38,8 @@ class SqlGameRepository(GameRepositoryProtocol):
             created_at=model.created_at,
             has_rolled_dice=bool(getattr(model, "has_rolled_dice", False)),
             consecutive_doubles=int(getattr(model, "consecutive_doubles", 0)),
+            available_houses=32 if houses is None else int(houses),
+            available_hotels=12 if hotels is None else int(hotels),
         )
 
     def get_by_id(self, game_id: int) -> Optional[Game]:
@@ -57,6 +66,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 created_at=game.created_at,
                 has_rolled_dice=game.has_rolled_dice,
                 consecutive_doubles=game.consecutive_doubles,
+                available_houses=game.available_houses,
+                available_hotels=game.available_hotels,
             )
             self._session.add(model)
             self._session.commit()
@@ -73,6 +84,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.current_player_index = game.current_player_index
                 model.has_rolled_dice = game.has_rolled_dice
                 model.consecutive_doubles = game.consecutive_doubles
+                model.available_houses = game.available_houses
+                model.available_hotels = game.available_hotels
                 self._session.commit()
             return game
 

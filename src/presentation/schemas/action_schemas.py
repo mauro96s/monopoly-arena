@@ -65,7 +65,32 @@ class BuildHouseResponse(BaseModel):
     new_houses_count: int
     new_hotels_count: int
     remaining_balance: int
+    available_houses: int = 32
+    available_hotels: int = 12
     transaction_id: int
+
+
+class SellBuildingRequest(BaseModel):
+    player_id: int = Field(..., description="ID del dueño del monopolio")
+    tile_id: str = Field(..., description="Casilla donde se vende/degrada la construcción")
+    sell_entire_group: bool = Field(False, description="Activa la liquidación uniforme del grupo en caso de escasez de casas en el Banco")
+
+
+class SellBuildingResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    tile_id: str
+    tile_name: str
+    refund_amount: int
+    new_houses_count: int
+    new_hotels_count: int
+    remaining_balance: int
+    available_houses: int
+    available_hotels: int
+    transaction_id: int
+    message: str = ""
 
 
 class MortgageRequest(BaseModel):

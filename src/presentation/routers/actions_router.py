@@ -9,6 +9,8 @@ from src.presentation.schemas.action_schemas import (
     PayRentResponse,
     BuildHouseRequest,
     BuildHouseResponse,
+    SellBuildingRequest,
+    SellBuildingResponse,
     MortgageRequest,
     MortgageResponse,
     JailActionRequest,
@@ -27,6 +29,7 @@ from src.application.dtos.action_dtos import (
     AuctionPropertyInputDTO,
     PayRentInputDTO,
     BuildHouseInputDTO,
+    SellBuildingInputDTO,
     MortgageInputDTO,
     JailActionInputDTO,
     BankActionInputDTO,
@@ -38,6 +41,7 @@ from src.application.use_cases import (
     AuctionPropertyUseCase,
     PayRentUseCase,
     BuildHouseUseCase,
+    SellBuildingUseCase,
     MortgagePropertyUseCase,
     JailActionUseCase,
     BankActionUseCase,
@@ -53,6 +57,7 @@ from src.presentation.dependencies import (
     get_auction_property_use_case,
     get_pay_rent_use_case,
     get_build_house_use_case,
+    get_sell_building_use_case,
     get_mortgage_property_use_case,
     get_jail_action_use_case,
     get_bank_action_use_case,
@@ -335,7 +340,49 @@ def build_house(
             new_houses_count=result.new_houses_count,
             new_hotels_count=result.new_hotels_count,
             remaining_balance=result.remaining_balance,
+            available_houses=result.available_houses,
+            available_hotels=result.available_hotels,
             transaction_id=result.transaction_id,
+        )
+    except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (InsufficientFundsError, InvalidGameActionError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/sell-building", response_model=SellBuildingResponse, status_code=status.HTTP_200_OK)
+@router.post("/sell-house", response_model=SellBuildingResponse, status_code=status.HTTP_200_OK)
+def sell_building(
+    game_id: int,
+    payload: SellBuildingRequest,
+    use_case: SellBuildingUseCase = Depends(get_sell_building_use_case),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+):
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    dto = SellBuildingInputDTO(
+        game_id=game_id,
+        player_id=payload.player_id,
+        tile_id=payload.tile_id,
+        sell_entire_group=payload.sell_entire_group,
+    )
+    try:
+        result = use_case.execute(dto)
+        return SellBuildingResponse(
+            success=True,
+            game_id=result.game_id,
+            player_id=result.player_id,
+            player_name=result.player_name,
+            tile_id=result.tile_id,
+            tile_name=result.tile_name,
+            refund_amount=result.refund_amount,
+            new_houses_count=result.new_houses_count,
+            new_hotels_count=result.new_hotels_count,
+            remaining_balance=result.remaining_balance,
+            available_houses=result.available_houses,
+            available_hotels=result.available_hotels,
+            transaction_id=result.transaction_id,
+            message=result.message,
         )
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

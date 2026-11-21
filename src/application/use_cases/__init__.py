@@ -3,6 +3,7 @@ from src.application.use_cases.auction_property import AuctionPropertyUseCase
 from src.application.use_cases.transfer_money import TransferMoneyUseCase
 from src.application.use_cases.pay_rent import PayRentUseCase
 from src.application.use_cases.build_house import BuildHouseUseCase
+from src.application.use_cases.sell_building import SellBuildingUseCase
 from src.application.use_cases.mortgage_property import MortgagePropertyUseCase
 from src.application.use_cases.jail_action import JailActionUseCase
 from src.application.use_cases.bank_action import BankActionUseCase
@@ -15,6 +16,7 @@ __all__ = [
     "TransferMoneyUseCase",
     "PayRentUseCase",
     "BuildHouseUseCase",
+    "SellBuildingUseCase",
     "MortgagePropertyUseCase",
     "JailActionUseCase",
     "BankActionUseCase",

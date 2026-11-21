@@ -60,11 +60,54 @@ class BuildHouseUseCase:
                 f"No puedes construir en '{tile_strategy.definition.name}' sin poseer todas las calles del grupo {tile_strategy.definition.group.value}."
             )
 
-        if prop_state.is_mortgaged:
-            raise InvalidGameActionError("No se puede construir en una propiedad hipotecada.")
+        # 1. Regla oficial: NINGUNA propiedad del grupo puede estar hipotecada
+        group_props = [self._property_repo.get_by_tile(game.id, tid) for tid in group_tiles]
+        for gp in group_props:
+            if gp and gp.is_mortgaged:
+                gp_strat = BoardRuleRegistry.get_strategy(game.variant, gp.tile_id)
+                gp_name = gp_strat.definition.name if gp_strat else gp.tile_id
+                raise InvalidGameActionError(
+                    f"No se puede construir en el grupo {tile_strategy.definition.group.value}: "
+                    f"la propiedad '{gp_name}' está hipotecada. Todas las calles del grupo deben estar libres de hipoteca."
+                )
 
         if prop_state.hotels_count >= 1:
             raise InvalidGameActionError(f"'{tile_strategy.definition.name}' ya tiene el máximo permitido (1 Hotel).")
+
+        # 2. Regla oficial: Construcción uniforme (Even building rule)
+        # Nivel de edificio: 0 a 4 para casas, 5 para hotel
+        def get_prop_level(p) -> int:
+            if not p:
+                return 0
+            return 5 if p.hotels_count >= 1 else p.houses_count
+
+        current_level = get_prop_level(prop_state)
+        group_levels = [get_prop_level(p) for p in group_props if p]
+        min_level_in_group = min(group_levels) if group_levels else 0
+
+        if current_level > min_level_in_group:
+            raise InvalidGameActionError(
+                f"Construcción no uniforme: '{tile_strategy.definition.name}' ya tiene nivel {current_level}, "
+                f"mientras que otra propiedad del grupo tiene nivel {min_level_in_group}. "
+                f"Las reglas del Monopoly exigen construir uniformemente en todas las calles del grupo."
+            )
+
+        # 3. Regla oficial: Reserva física de 32 casas y 12 hoteles en el Banco
+        is_upgrading_to_hotel = (prop_state.houses_count == 4)
+        if not is_upgrading_to_hotel:
+            # Desea construir una casa (0->1, 1->2, 2->3, 3->4)
+            if game.available_houses < 1:
+                raise InvalidGameActionError(
+                    "El Banco no dispone de casas físicas (0 disponibles). "
+                    "Debes esperar a que otro jugador venda casas para construir."
+                )
+        else:
+            # Desea construir un hotel (4->5)
+            if game.available_hotels < 1:
+                raise InvalidGameActionError(
+                    "El Banco no dispone de hoteles físicos (0 disponibles). "
+                    "Debes esperar a que se libere un hotel en el Banco para construir."
+                )
 
         cost = tile_strategy.definition.house_cost
         if not player.can_afford(cost):
@@ -72,20 +115,23 @@ class BuildHouseUseCase:
                 f"Fondos insuficientes para construir (${cost} requeridos, saldo: ${player.money})."
             )
 
-        # Aplicar mejora
-        is_hotel = False
-        if prop_state.houses_count < 4:
+        # Aplicar mejora y actualizar reserva del Banco
+        if not is_upgrading_to_hotel:
             prop_state.houses_count += 1
+            game.available_houses -= 1
             item_name = f"casa #{prop_state.houses_count}"
         else:
+            # Hotel: se entregan las 4 casas de vuelta al Banco y se toma 1 hotel
             prop_state.houses_count = 0
             prop_state.hotels_count = 1
-            is_hotel = True
+            game.available_hotels -= 1
+            game.available_houses += 4
             item_name = "Hotel"
 
         player.deduct_money(cost)
         self._player_repo.save(player)
         self._property_repo.save(prop_state)
+        self._game_repo.save(game)
 
         # Registrar en Ledger
         desc = f"{player.name} construyó {item_name} en {tile_strategy.definition.name} por ${cost}"
@@ -114,4 +160,6 @@ class BuildHouseUseCase:
             new_hotels_count=prop_state.hotels_count,
             remaining_balance=player.money,
             transaction_id=tx.id if tx.id else 0,
+            available_houses=game.available_houses,
+            available_hotels=game.available_hotels,
         )

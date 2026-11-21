@@ -72,6 +72,33 @@ class BuildHouseOutputDTO:
     new_hotels_count: int
     remaining_balance: int
     transaction_id: int
+    available_houses: int = 32
+    available_hotels: int = 12
+
+
+@dataclass(frozen=True)
+class SellBuildingInputDTO:
+    game_id: int
+    player_id: int
+    tile_id: str
+    sell_entire_group: bool = False
+
+
+@dataclass(frozen=True)
+class SellBuildingOutputDTO:
+    game_id: int
+    player_id: int
+    player_name: str
+    tile_id: str
+    tile_name: str
+    refund_amount: int
+    new_houses_count: int
+    new_hotels_count: int
+    remaining_balance: int
+    transaction_id: int
+    available_houses: int
+    available_hotels: int
+    message: str = ""
 
 
 @dataclass(frozen=True)
