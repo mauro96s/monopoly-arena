@@ -272,6 +272,123 @@
 </div>
 
 <!-- ========================================================================= -->
+<!-- MODAL DE MENÚ GENERAL DE PARTIDA (CLIC EN C6F2)                           -->
+<!-- ========================================================================= -->
+<div id="general-game-menu-modal" onclick="if (event.target === this) closeGeneralGameMenu();" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm hidden animate-fade-in">
+  <div class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[88vh] overflow-hidden">
+    <!-- Header -->
+    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl">
+          📋
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">
+              Menú General de Partida
+            </h3>
+            <span id="general-menu-round-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+              Ronda #1
+            </span>
+          </div>
+          <p id="general-menu-subtitle" class="text-xs text-slate-500 dark:text-slate-400">
+            Resumen general, estado de jugadores y accesos directos
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick="closeGeneralGameMenu()"
+        class="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+        title="Cerrar menú"
+      >
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Body Scrollable -->
+    <div class="p-4 sm:p-5 overflow-y-auto space-y-4">
+      <!-- Sección 1: Accesos Rápidos Directos -->
+      <div>
+        <h4 class="text-xs font-mono uppercase font-black tracking-wider text-slate-400 dark:text-slate-400 mb-2">
+          Accesos Rápidos
+        </h4>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            type="button"
+            onclick="closeGeneralGameMenu(); openActionModal('bank');"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-300 transition-all flex flex-col items-center text-center cursor-pointer group"
+          >
+            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">🏦</span>
+            <span class="text-xs font-heading font-bold text-slate-800 dark:text-slate-200">Ajuste de Banca</span>
+            <span class="text-[9px] font-mono text-slate-400">Cobros y pagos</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="closeGeneralGameMenu(); openActionModal('build');"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-300 transition-all flex flex-col items-center text-center cursor-pointer group"
+          >
+            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">🏗️</span>
+            <span class="text-xs font-heading font-bold text-slate-800 dark:text-slate-200">Construcción</span>
+            <span class="text-[9px] font-mono text-slate-400">Casas y hoteles</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="closeGeneralGameMenu(); openActionModal('mortgage');"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-300 transition-all flex flex-col items-center text-center cursor-pointer group"
+          >
+            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">📜</span>
+            <span class="text-xs font-heading font-bold text-slate-800 dark:text-slate-200">Hipotecas</span>
+            <span class="text-[9px] font-mono text-slate-400">Liquidez y rescate</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="closeGeneralGameMenu(); openActionModal('buy');"
+            class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-300 transition-all flex flex-col items-center text-center cursor-pointer group"
+          >
+            <span class="text-xl mb-1 group-hover:scale-110 transition-transform">🏷️</span>
+            <span class="text-xs font-heading font-bold text-slate-800 dark:text-slate-200">Mercado</span>
+            <span class="text-[9px] font-mono text-slate-400">Catálogo de títulos</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sección 2: Estado de Jugadores en Partida -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-mono uppercase font-black tracking-wider text-slate-400 dark:text-slate-400">
+            Jugadores en Partida
+          </h4>
+          <span class="text-[10px] font-mono text-slate-400">Haz clic en un jugador para ver detalles</span>
+        </div>
+        <div id="general-menu-players-list" class="space-y-2">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Sección 3: Resumen y Parámetros del Tablero -->
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/60 text-xs space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-slate-500 dark:text-slate-400">Variante:</span>
+          <span class="font-heading font-bold text-slate-800 dark:text-slate-200">Monopoly Clásico (Circuito en M 11x6)</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-slate-500 dark:text-slate-400">Salario por vuelta (Salida):</span>
+          <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">+$200</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-slate-500 dark:text-slate-400">Fianza de Cárcel:</span>
+          <span class="font-mono font-bold text-amber-600 dark:text-amber-400">$50 o sacar dobles</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
 <!-- MODAL CONTEXTUAL TÁCTICO: ALTURA ESTÁTICA Y MINIMALISTA                   -->
 <!-- ========================================================================= -->
 <div id="action-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm hidden animate-fade-in">
@@ -593,24 +710,28 @@
         <div class="flex items-center justify-center gap-3">
           <input
             id="manual-die-1"
-            type="number"
-            min="1"
-            max="6"
+            type="text"
+            inputmode="numeric"
+            maxlength="1"
             placeholder="D1"
             title="Dado 1 (1 al 6)"
-            oninput="onManualDiceInputChanged()"
-            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            onkeydown="filterPillDiceKey(event)"
+            oninput="handleModalDiceInput(this, 1)"
+            onpaste="handleModalDicePaste(event, 1)"
+            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           />
           <span class="text-slate-400 font-black text-lg">+</span>
           <input
             id="manual-die-2"
-            type="number"
-            min="1"
-            max="6"
+            type="text"
+            inputmode="numeric"
+            maxlength="1"
             placeholder="D2"
             title="Dado 2 (1 al 6)"
-            oninput="onManualDiceInputChanged()"
-            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            onkeydown="filterPillDiceKey(event)"
+            oninput="handleModalDiceInput(this, 2)"
+            onpaste="handleModalDicePaste(event, 2)"
+            class="w-14 h-14 rounded-2xl border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono font-black text-center text-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           />
           <span id="manual-dice-sum-badge" class="font-mono font-bold text-sm text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
             = ?
@@ -669,6 +790,7 @@
 {% block scripts %}
 <script>
   const GAME_ID = {{ game.id }};
+  const GAME_CODE = '{{ game.code }}';
   let gameState = null;
   let playersData = [];
   let boardTiles = [];
@@ -693,6 +815,154 @@
   let pillDiceSum = null;
   let pillManualD1 = '';
   let pillManualD2 = '';
+
+  // --- FILTRADO Y VALIDACIÓN ESTRICTA DE DADOS 1..6 ---
+  function filterPillDiceKey(e) {
+    const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (allowedKeys.includes(e.key)) return;
+    if (!/^[1-6]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  }
+
+  function handlePillDiceInput(input, dieNum) {
+    let val = input.value.replace(/[^1-6]/g, '');
+    if (val.length > 1) {
+      val = val.slice(-1);
+    }
+    input.value = val;
+    if (dieNum === 1) {
+      pillManualD1 = val;
+      if (val) {
+        const d2Input = document.getElementById('pill-manual-d2');
+        if (d2Input && !d2Input.value) d2Input.focus();
+      }
+    } else {
+      pillManualD2 = val;
+    }
+    updatePillManualSum();
+  }
+
+  function handlePillDicePaste(e, dieNum) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const clean = text.replace(/[^1-6]/g, '').slice(0, 1);
+    if (clean) {
+      e.target.value = clean;
+      handlePillDiceInput(e.target, dieNum);
+    }
+  }
+
+  function updatePillManualSum() {
+    const sumEl = document.getElementById('pill-manual-sum');
+    if (!sumEl) return;
+    const d1 = parseInt(pillManualD1, 10);
+    const d2 = parseInt(pillManualD2, 10);
+    if (!isNaN(d1) && !isNaN(d2) && d1 >= 1 && d1 <= 6 && d2 >= 1 && d2 <= 6) {
+      sumEl.textContent = (d1 + d2);
+      sumEl.className = "w-6 sm:w-7 text-center font-mono font-black text-xs text-emerald-600 dark:text-emerald-400 select-none";
+    } else {
+      sumEl.textContent = '?';
+      sumEl.className = "w-6 sm:w-7 text-center font-mono font-bold text-xs text-slate-400 select-none";
+    }
+  }
+
+  function handleModalDiceInput(input, dieNum) {
+    let val = input.value.replace(/[^1-6]/g, '');
+    if (val.length > 1) {
+      val = val.slice(-1);
+    }
+    input.value = val;
+    if (dieNum === 1 && val) {
+      const d2Input = document.getElementById('manual-die-2');
+      if (d2Input && !d2Input.value) d2Input.focus();
+    }
+    onManualDiceInputChanged();
+  }
+
+  function handleModalDicePaste(e, dieNum) {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const clean = text.replace(/[^1-6]/g, '').slice(0, 1);
+    if (clean) {
+      e.target.value = clean;
+      handleModalDiceInput(e.target, dieNum);
+    }
+  }
+
+  // --- NOMBRES ABREVIADOS EN UNA SOLA LÍNEA ---
+  const OFFICIAL_SHORT_NAMES = {
+    0: 'Salida',
+    1: 'Mediterráneo',
+    2: 'Caja Comunidad',
+    3: 'Báltica',
+    4: 'Imp. Ingresos',
+    5: 'Fc. Reading',
+    6: 'Oriental',
+    7: 'Suerte',
+    8: 'Vermont',
+    9: 'Connecticut',
+    10: 'Cárcel',
+    11: 'Plaza Sn. Carlos',
+    12: 'Electricidad',
+    13: 'Av. Estados',
+    14: 'Virginia',
+    15: 'Fc. Pensilvania',
+    16: 'Plaza Sn. Jaime',
+    17: 'Caja Comunidad',
+    18: 'Tennessee',
+    19: 'Nueva York',
+    20: 'Parking',
+    21: 'Kentucky',
+    22: 'Suerte',
+    23: 'Indiana',
+    24: 'Illinois',
+    25: 'Fc. B. & O.',
+    26: 'Atlántico',
+    27: 'Ventnor',
+    28: 'Agua Potable',
+    29: 'Jardines Marvin',
+    30: 'A la Cárcel',
+    31: 'Pacífico',
+    32: 'Carolina Norte',
+    33: 'Caja Comunidad',
+    34: 'Pensilvania',
+    35: 'Fc. Vía Rápida',
+    36: 'Suerte',
+    37: 'Plaza Parque',
+    38: 'Imp. Lujo',
+    39: 'Paseo Tablado'
+  };
+
+  function getShortTileName(tile) {
+    if (!tile) return '';
+    if (OFFICIAL_SHORT_NAMES[tile.position] !== undefined) {
+      return OFFICIAL_SHORT_NAMES[tile.position];
+    }
+    if (!tile.name) return `Casilla #${tile.position}`;
+    return tile.name
+      .replace(/^Ferrocarril\s+(de\s+)?/i, 'Fc. ')
+      .replace(/^Compañía\s+de\s+/i, 'Cía. ')
+      .replace(/^Servicio\s+de\s+/i, '')
+      .replace(/^Avenida\s+/i, 'Av. ')
+      .replace(/\s*\(.*\)$/, '')
+      .trim();
+  }
+
+  function calculatePlayerNetWorth(player) {
+    if (!player) return 0;
+    const playerProps = propertyStates.filter(p => p.owner_id === player.id);
+    let propsValue = 0;
+    let buildingsValue = 0;
+    playerProps.forEach(prop => {
+      const t = boardTiles.find(bt => bt.tile_id === prop.tile_id);
+      if (t) {
+        propsValue += (t.price || 0);
+        buildingsValue += ((prop.houses_count || 0) * (t.house_cost || 0)) + ((prop.hotels_count || 0) * (t.house_cost || 0));
+      }
+    });
+    return player.money + propsValue + buildingsValue;
+  }
 
   function resetDiceDisplay() {
     if (diceRollTimer) {
@@ -833,14 +1103,10 @@
           <button
             type="button"
             onclick="openPlayerProfile(${activePlayer.id})"
-            class="flex items-center gap-1.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer"
-            title="Ver perfil de ${activePlayer.name}"
+            class="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xs border border-slate-200 dark:border-slate-600 shrink-0"
+            title="${activePlayer.name} ($${activePlayer.money.toLocaleString()}) • ${isStart ? 'Inicio' : 'Pausa'} - Clic para ver perfil"
           >
-            <span class="text-xl sm:text-2xl">${tokenEmoji}</span>
-            <div class="min-w-0">
-              <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate block max-w-[80px] sm:max-w-[110px]">${activePlayer.name}</span>
-              <span class="text-[9px] font-mono text-slate-500 dark:text-slate-400 block">$${activePlayer.money.toLocaleString()} • ${isStart ? 'Inicio' : 'Pausa'}</span>
-            </div>
+            <span class="text-2xl sm:text-3xl leading-none">${tokenEmoji}</span>
           </button>
 
           <div class="flex items-center gap-1.5 shrink-0">
@@ -879,13 +1145,11 @@
           <button
             type="button"
             onclick="openPlayerProfile(${activePlayer.id})"
-            class="flex items-center gap-1.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer"
+            class="relative w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xs border border-slate-200 dark:border-slate-600 shrink-0"
+            title="${activePlayer.name} ($${activePlayer.money.toLocaleString()}) • ⛓️ Preso (${activePlayer.jail_turns}/3) - Clic para ver perfil"
           >
-            <span class="text-xl sm:text-2xl">${tokenEmoji}</span>
-            <div class="min-w-0">
-              <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate block max-w-[70px] sm:max-w-[90px]">${activePlayer.name}</span>
-              <span class="text-[9px] font-mono text-red-500 font-bold block">⛓️ Preso (${activePlayer.jail_turns}/3)</span>
-            </div>
+            <span class="text-2xl sm:text-3xl leading-none">${tokenEmoji}</span>
+            <span class="absolute -bottom-1 -right-1 text-xs">⛓️</span>
           </button>
 
           <div class="flex items-center gap-1.5 shrink-0">
@@ -925,17 +1189,18 @@
     if (!gameState.has_rolled_dice) {
       if (isRolling) {
         pill.innerHTML = `
-          <div class="w-full flex items-center justify-center gap-2">
-            <div id="pill-dice-1" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-lg text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 shadow-inner dice-rolling">
+          <div class="w-full h-full flex items-center justify-center gap-1.5 sm:gap-2 px-1">
+            <div id="pill-dice-1" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-base sm:text-lg text-slate-800 dark:text-white border border-slate-300 dark:border-slate-600 shadow-inner dice-rolling shrink-0">
               ${pillDiceVal1 || '🎲'}
             </div>
-            <span class="text-xs font-mono font-bold text-slate-400">+</span>
-            <div id="pill-dice-2" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-lg text-slate-800 dark:text-white border border-slate-200 dark:border-slate-600 shadow-inner dice-rolling">
+            <span class="text-xs font-mono font-bold text-slate-400 select-none">+</span>
+            <div id="pill-dice-2" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-base sm:text-lg text-slate-800 dark:text-white border border-slate-300 dark:border-slate-600 shadow-inner dice-rolling shrink-0">
               ${pillDiceVal2 || '🎲'}
             </div>
-            <span id="pill-dice-sum" class="font-mono font-black text-xs px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-              ${pillDiceSum ? `= ${pillDiceSum}` : '...'}
-            </span>
+            <span class="text-xs font-mono font-bold text-slate-400 select-none">=</span>
+            <div id="pill-dice-sum" class="h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center justify-center font-mono font-black text-xs sm:text-sm shadow-xs shrink-0">
+              ${pillDiceSum ? pillDiceSum : '...'}
+            </div>
           </div>
         `;
         return;
@@ -943,17 +1208,18 @@
 
       if (pillDiceVal1 !== null && pillDiceVal2 !== null) {
         pill.innerHTML = `
-          <div class="w-full flex items-center justify-center gap-2">
-            <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-lg text-emerald-600 dark:text-emerald-400 border border-emerald-400 dark:border-emerald-600 shadow-sm">
+          <div class="w-full h-full flex items-center justify-center gap-1.5 sm:gap-2 px-1">
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-base sm:text-lg text-emerald-600 dark:text-emerald-400 border border-emerald-400 dark:border-emerald-600 shadow-sm shrink-0">
               ${pillDiceVal1}
             </div>
-            <span class="text-xs font-mono font-bold text-slate-400">+</span>
-            <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-lg text-emerald-600 dark:text-emerald-400 border border-emerald-400 dark:border-emerald-600 shadow-sm">
+            <span class="text-xs font-mono font-bold text-slate-400 select-none">+</span>
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-mono font-black text-base sm:text-lg text-emerald-600 dark:text-emerald-400 border border-emerald-400 dark:border-emerald-600 shadow-sm shrink-0">
               ${pillDiceVal2}
             </div>
-            <span class="font-mono font-black text-xs px-2 py-1 rounded-lg bg-emerald-600 text-white shadow-xs">
-              = ${pillDiceSum}
-            </span>
+            <span class="text-xs font-mono font-bold text-slate-400 select-none">=</span>
+            <div class="h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-mono font-black text-xs sm:text-sm shadow-xs shrink-0">
+              ${pillDiceSum}
+            </div>
           </div>
         `;
         return;
@@ -965,37 +1231,22 @@
             <button
               type="button"
               onclick="openPlayerProfile(${activePlayer.id})"
-              class="flex items-center gap-1.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer"
-              title="Ver perfil de ${activePlayer.name}"
+              class="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xs border border-slate-200 dark:border-slate-600 shrink-0"
+              title="${activePlayer.name} ($${activePlayer.money.toLocaleString()}) - Clic para ver perfil"
             >
-              <span class="text-xl sm:text-2xl">${tokenEmoji}</span>
-              <div class="min-w-0">
-                <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate block max-w-[70px] sm:max-w-[90px]">${activePlayer.name}</span>
-                <span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block">$${activePlayer.money.toLocaleString()}</span>
-              </div>
+              <span class="text-2xl sm:text-3xl leading-none">${tokenEmoji}</span>
             </button>
 
-            <div class="flex items-center gap-1.5 shrink-0 flex-1 justify-end">
-              <button
-                id="pill-btn-roll"
-                type="button"
-                onclick="executePillRollDice()"
-                class="py-2 px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                title="Tirar dados automáticamente y mover la ficha"
-              >
-                <i data-lucide="dices" class="w-4 h-4"></i>
-                <span>Tirar Dados</span>
-              </button>
-
-              <button
-                type="button"
-                onclick="togglePlayPause()"
-                class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                title="Pausar partida"
-              >
-                <i data-lucide="pause" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
+            <button
+              id="pill-btn-roll"
+              type="button"
+              onclick="executePillRollDice()"
+              class="flex-1 py-2 px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title="Tirar dados automáticamente y mover la ficha"
+            >
+              <i data-lucide="dices" class="w-4 h-4"></i>
+              <span>Tirar Dados</span>
+            </button>
           </div>
         `;
         if (window.lucide) lucide.createIcons();
@@ -1003,61 +1254,65 @@
       }
 
       if (diceMode === 'MANUAL') {
+        const mD1 = parseInt(pillManualD1, 10);
+        const mD2 = parseInt(pillManualD2, 10);
+        const hasValidManual = (!isNaN(mD1) && !isNaN(mD2) && mD1 >= 1 && mD1 <= 6 && mD2 >= 1 && mD2 <= 6);
+        const manualSumDisplay = hasValidManual ? (mD1 + mD2) : '?';
+
         pill.innerHTML = `
           <div class="w-full flex items-center justify-between gap-1.5 px-1">
             <button
               type="button"
               onclick="openPlayerProfile(${activePlayer.id})"
-              class="flex items-center gap-1 min-w-0 text-left shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+              class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xs border border-slate-200 dark:border-slate-600 shrink-0"
+              title="${activePlayer.name} ($${activePlayer.money.toLocaleString()}) - Clic para ver perfil"
             >
-              <span class="text-lg">${tokenEmoji}</span>
-              <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate max-w-[50px]">${activePlayer.name}</span>
+              <span class="text-xl sm:text-2xl leading-none">${tokenEmoji}</span>
             </button>
 
             <div class="flex items-center gap-1 shrink-0">
               <input
                 id="pill-manual-d1"
-                type="number"
-                min="1"
-                max="6"
+                type="text"
+                inputmode="numeric"
+                maxlength="1"
                 value="${pillManualD1}"
-                oninput="pillManualD1 = this.value"
-                class="w-7 h-7 text-center font-mono font-bold text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-1 focus:ring-emerald-500"
-                placeholder="1"
+                onkeydown="filterPillDiceKey(event)"
+                oninput="handlePillDiceInput(this, 1)"
+                onpaste="handlePillDicePaste(event, 1)"
+                class="w-7 h-7 sm:w-8 sm:h-8 text-center font-mono font-bold text-xs sm:text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                placeholder="🎲"
+                title="Dado 1 (1 al 6)"
               >
-              <span class="text-[10px] font-mono font-bold text-slate-400">+</span>
+              <span class="text-[11px] font-mono font-bold text-slate-400 select-none">+</span>
               <input
                 id="pill-manual-d2"
-                type="number"
-                min="1"
-                max="6"
+                type="text"
+                inputmode="numeric"
+                maxlength="1"
                 value="${pillManualD2}"
-                oninput="pillManualD2 = this.value"
-                class="w-7 h-7 text-center font-mono font-bold text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-1 focus:ring-emerald-500"
-                placeholder="1"
+                onkeydown="filterPillDiceKey(event)"
+                oninput="handlePillDiceInput(this, 2)"
+                onpaste="handlePillDicePaste(event, 2)"
+                class="w-7 h-7 sm:w-8 sm:h-8 text-center font-mono font-bold text-xs sm:text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                placeholder="🎲"
+                title="Dado 2 (1 al 6)"
               >
+              <span class="text-[11px] font-mono font-bold text-slate-400 select-none">=</span>
+              <span id="pill-manual-sum" class="w-6 sm:w-7 text-center font-mono font-bold text-xs ${hasValidManual ? 'text-emerald-600 dark:text-emerald-400 font-black' : 'text-slate-400'} select-none">
+                ${manualSumDisplay}
+              </span>
             </div>
 
-            <div class="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onclick="executePillManualMove()"
-                class="py-1.5 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-xs flex items-center gap-1 cursor-pointer"
-                title="Mover ficha con los dados ingresados"
-              >
-                <span>Mover</span>
-                <i data-lucide="arrow-right" class="w-3 h-3"></i>
-              </button>
-
-              <button
-                type="button"
-                onclick="togglePlayPause()"
-                class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                title="Pausar partida"
-              >
-                <i data-lucide="pause" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
+            <button
+              type="button"
+              onclick="executePillManualMove()"
+              class="py-1.5 px-2.5 sm:px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+              title="Mover ficha con los dados ingresados"
+            >
+              <span>Mover</span>
+              <i data-lucide="arrow-right" class="w-3 h-3"></i>
+            </button>
           </div>
         `;
         if (window.lucide) lucide.createIcons();
@@ -1071,18 +1326,14 @@
         <button
           type="button"
           onclick="openPlayerProfile(${activePlayer.id})"
-          class="flex items-center gap-1.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer"
-          title="Ver perfil de ${activePlayer.name}"
+          class="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700/80 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xs border border-slate-200 dark:border-slate-600 shrink-0"
+          title="${activePlayer.name} ($${activePlayer.money.toLocaleString()}) - Clic para ver perfil"
         >
-          <span class="text-xl sm:text-2xl">${tokenEmoji}</span>
-          <div class="min-w-0">
-            <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate block max-w-[65px] sm:max-w-[85px]">${activePlayer.name}</span>
-            <span class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 block">$${activePlayer.money.toLocaleString()}</span>
-          </div>
+          <span class="text-2xl sm:text-3xl leading-none">${tokenEmoji}</span>
         </button>
 
         ${(pillDiceVal1 !== null && pillDiceVal2 !== null) ? `
-          <div class="hidden xs:flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 shrink-0">
+          <div class="flex items-center gap-1 font-mono text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 shrink-0">
             <span>🎲</span>
             <span>${pillDiceVal1}+${pillDiceVal2}</span>
             <span class="text-emerald-600 dark:text-emerald-400 font-extrabold">= ${pillDiceSum}</span>
@@ -1655,8 +1906,8 @@
     const gridContainer = document.getElementById('monopoly-board-grid');
     if (!gridContainer || !boardTiles || boardTiles.length === 0) return;
 
-    // Eliminar únicamente las casillas (.board-tile) y círculos de jugadores (.player-slot-circle) para redibujar
-    gridContainer.querySelectorAll('.board-tile, .player-slot-circle').forEach(el => el.remove());
+    // Eliminar únicamente las casillas (.board-tile), círculos de jugadores (.player-slot-circle) y círculo central (.center-round-circle) para redibujar
+    gridContainer.querySelectorAll('.board-tile, .player-slot-circle, .center-round-circle').forEach(el => el.remove());
 
     const activePlayer = getActivePlayer();
     const activeTile = activePlayer ? boardTiles.find(t => t.position === activePlayer.position) : null;
@@ -1670,18 +1921,52 @@
     renderPlayersSummaryDock();
     renderCenterBoardHUD();
 
-    // Renderizar círculos distintivos de jugadores en Fila 2 (c3f2..c5f2 y c7f2..c9f2, con c6f2 libre como separación)
-    const PLAYER_GRID_SLOTS = [
-      { col: 3, row: 2 },
-      { col: 4, row: 2 },
-      { col: 5, row: 2 },
-      { col: 7, row: 2 },
-      { col: 8, row: 2 },
-      { col: 9, row: 2 },
-    ];
+    // Reparto simétrico de jugadores alrededor de c6f2 (sin ocupar c6f2)
+    function getSymmetricPlayerSlots(count) {
+      if (count <= 2) {
+        return [
+          { col: 5, row: 2 },
+          { col: 7, row: 2 },
+        ];
+      }
+      if (count === 3) {
+        return [
+          { col: 4, row: 2 },
+          { col: 5, row: 2 },
+          { col: 7, row: 2 },
+        ];
+      }
+      if (count === 4) {
+        return [
+          { col: 4, row: 2 },
+          { col: 5, row: 2 },
+          { col: 7, row: 2 },
+          { col: 8, row: 2 },
+        ];
+      }
+      if (count === 5) {
+        return [
+          { col: 3, row: 2 },
+          { col: 4, row: 2 },
+          { col: 5, row: 2 },
+          { col: 7, row: 2 },
+          { col: 8, row: 2 },
+        ];
+      }
+      // 6 jugadores o más
+      return [
+        { col: 3, row: 2 },
+        { col: 4, row: 2 },
+        { col: 5, row: 2 },
+        { col: 7, row: 2 },
+        { col: 8, row: 2 },
+        { col: 9, row: 2 },
+      ];
+    }
 
+    const symmetricSlots = getSymmetricPlayerSlots(playersData.length);
     playersData.slice(0, 6).forEach((p, idx) => {
-      const slot = PLAYER_GRID_SLOTS[idx];
+      const slot = symmetricSlots[idx];
       if (!slot) return;
       const isActive = activePlayer && p.id === activePlayer.id;
 
@@ -1711,6 +1996,37 @@
 
       gridContainer.appendChild(circleWrapper);
     });
+
+    // Círculo distintivo central en c6f2 para datos de la partida y Menú General
+    const centerCircleWrapper = document.createElement('div');
+    centerCircleWrapper.className = 'center-round-circle w-full h-full flex items-center justify-center p-0.5 select-none z-10';
+    centerCircleWrapper.style.gridColumn = '6';
+    centerCircleWrapper.style.gridRow = '2';
+
+    const roundNum = gameState ? gameState.current_turn : 1;
+    const readableStatus = gameState ? getReadableStatus(gameState.status) : 'En Curso';
+    const gCode = (typeof GAME_CODE !== 'undefined' && GAME_CODE) ? GAME_CODE : ((gameState && gameState.code) ? gameState.code : '');
+
+    centerCircleWrapper.innerHTML = `
+      <button
+        type="button"
+        onclick="openGeneralGameMenu()"
+        class="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg bg-gradient-to-b from-slate-900 to-slate-950 dark:from-slate-800 dark:to-slate-950 text-white border-2 border-amber-400 hover:border-amber-300 ring-2 ring-amber-400/20 shadow-amber-500/20 group"
+        title="Partida ${gCode} • Ronda #${roundNum} (${readableStatus}) - Clic para abrir Menú General"
+      >
+        <span class="text-[7px] sm:text-[8px] font-mono font-black text-amber-300 uppercase tracking-widest leading-none">
+          RONDA
+        </span>
+        <span class="text-base sm:text-lg font-heading font-black text-white leading-tight mt-0.5 group-hover:text-amber-200 transition-colors">
+          ${roundNum}
+        </span>
+        <span class="text-[7px] font-mono text-slate-300 flex items-center gap-0.5 leading-none mt-0.5">
+          <i data-lucide="layout-grid" class="w-2.5 h-2.5 text-amber-400"></i>
+          <span>Menú</span>
+        </span>
+      </button>
+    `;
+    gridContainer.appendChild(centerCircleWrapper);
 
     // Asegurar que la pastilla de control exista en c5f6..c7f6
     let pillEl = document.getElementById('board-control-pill');
@@ -1847,8 +2163,8 @@
               <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
             </div>
             <div class="my-auto text-center leading-tight">
-              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-sky-800 dark:text-sky-300 block uppercase">
-                Caja Comunidad
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-sky-800 dark:text-sky-300 block uppercase leading-tight whitespace-nowrap" title="${tile.name}">
+                ${getShortTileName(tile)}
               </span>
               <span class="text-[7px] font-mono text-slate-400 block mt-0.5">Carta</span>
             </div>
@@ -1865,8 +2181,8 @@
               <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
             </div>
             <div class="my-auto text-center leading-tight">
-              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-amber-800 dark:text-amber-300 block uppercase">
-                Suerte
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-amber-800 dark:text-amber-300 block uppercase leading-tight whitespace-nowrap" title="${tile.name}">
+                ${getShortTileName(tile)}
               </span>
               <span class="text-[7px] font-mono text-slate-400 block mt-0.5">Carta</span>
             </div>
@@ -1877,7 +2193,6 @@
         } else if (isTax) {
           // 3. Impuestos (2 casillas: #4 y #38) - Limpias y sin franja de color superior
           tileEl.className = `board-tile bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-red-400 flex flex-col justify-between overflow-hidden cursor-pointer shadow-xs select-none p-1 sm:p-1.5`;
-          const taxName = pos === 4 ? 'Ingresos' : 'Lujo';
           const taxIcon = pos === 4 ? '🏛️' : '💍';
           tileEl.innerHTML = `
             <div class="flex items-center justify-between w-full">
@@ -1885,8 +2200,8 @@
               <span class="text-[7px] font-mono text-slate-400 font-bold">#${pos}</span>
             </div>
             <div class="my-auto text-center leading-tight">
-              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 block uppercase truncate" title="${tile.name}">
-                Impuesto ${taxName}
+              <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 block uppercase truncate leading-tight whitespace-nowrap" title="${tile.name}">
+                ${getShortTileName(tile)}
               </span>
               <span class="text-[8px] font-mono font-black text-red-600 dark:text-red-400 block mt-0.5">-$${tile.price || (pos === 4 ? 200 : 100)}</span>
             </div>
@@ -1912,9 +2227,9 @@
           tileEl.innerHTML = `
             ${colorBarHtml}
             <div class="p-1 sm:p-1.5 flex flex-col justify-between flex-1 min-h-0">
-              <div class="flex items-center justify-between gap-0.5">
-                <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 truncate leading-tight" title="${tile.name}">
-                  ${tile.name}
+              <div class="flex items-center justify-between gap-0.5 min-w-0">
+                <span class="text-[8px] sm:text-[9px] font-heading font-extrabold text-slate-800 dark:text-slate-100 block truncate leading-tight whitespace-nowrap min-w-0" title="${tile.name}">
+                  ${getShortTileName(tile)}
                 </span>
                 <span class="shrink-0">${buildingHtml || ownerBadgeHtml}</span>
               </div>
@@ -3631,6 +3946,85 @@
 
   function closePlayerProfile() {
     document.getElementById('player-profile-modal').classList.add('hidden');
+  }
+
+  // ========================================================
+  // MODAL DE MENÚ GENERAL DE PARTIDA (CLIC EN C6F2)
+  // ========================================================
+  function openGeneralGameMenu() {
+    const modal = document.getElementById('general-game-menu-modal');
+    if (!modal) return;
+
+    const roundBadge = document.getElementById('general-menu-round-badge');
+    if (roundBadge && gameState) {
+      roundBadge.textContent = `Ronda #${gameState.current_turn}`;
+    }
+
+    const subtitle = document.getElementById('general-menu-subtitle');
+    if (subtitle && gameState) {
+      const activeP = getActivePlayer();
+      const gCode = (typeof GAME_CODE !== 'undefined' && GAME_CODE) ? GAME_CODE : ((gameState && gameState.code) ? gameState.code : '');
+      subtitle.textContent = `Partida ${gCode} • Turno de ${activeP ? activeP.name : 'N/A'} • ${getReadableStatus(gameState.status)}`;
+    }
+
+    const playersListEl = document.getElementById('general-menu-players-list');
+    if (playersListEl && playersData) {
+      const activePlayer = getActivePlayer();
+      playersListEl.innerHTML = playersData.map(p => {
+        const isActive = activePlayer && p.id === activePlayer.id;
+        const curTile = boardTiles.find(t => t.position === p.position);
+        const tileTitle = curTile ? getShortTileName(curTile) : `#${p.position}`;
+        const ownedPropsCount = propertyStates.filter(prop => prop.owner_id === p.id).length;
+        const netWorth = calculatePlayerNetWorth(p);
+
+        return `
+          <div
+            onclick="closeGeneralGameMenu(); openPlayerProfile(${p.id});"
+            class="p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+              isActive
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700/80 shadow-xs'
+                : 'bg-white dark:bg-slate-700/50 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+            }"
+            title="Clic para ver perfil y escrituras de ${p.name}"
+          >
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="text-2xl">${getTokenEmoji(p.token)}</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-xs font-heading font-extrabold text-slate-900 dark:text-white truncate">
+                    ${p.name}
+                  </span>
+                  ${isActive ? '<span class="px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold bg-emerald-600 text-white uppercase">Turno</span>' : ''}
+                  ${p.in_jail ? '<span class="px-1.5 py-0.2 rounded-full text-[8px] font-mono font-bold bg-red-100 text-red-700 dark:bg-red-950/80 dark:text-red-300">⛓️ Preso</span>' : ''}
+                </div>
+                <div class="text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                  <span>📍 #${p.position} (${tileTitle})</span>
+                  <span>•</span>
+                  <span>🏠 ${ownedPropsCount} prop.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-right shrink-0">
+              <span class="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                $${p.money.toLocaleString()}
+              </span>
+              <span class="text-[9px] font-mono text-slate-400 block" title="Patrimonio neto total">
+                Patr. $${netWorth.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeGeneralGameMenu() {
+    const modal = document.getElementById('general-game-menu-modal');
+    if (modal) modal.classList.add('hidden');
   }
 
   function handleTileClick(tile, propState) {
