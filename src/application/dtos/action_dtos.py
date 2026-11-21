@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 
 @dataclass(frozen=True)
@@ -257,3 +257,33 @@ class AuctionPropertyOutputDTO:
     transaction_id: int
     current_turn: int
     current_player_index: int
+
+
+@dataclass(frozen=True)
+class DeclareBankruptcyInputDTO:
+    game_id: int
+    bankrupt_player_id: int
+    creditor_player_id: Optional[int] = None
+    unmortgage_transferred_properties: bool = False
+
+
+@dataclass(frozen=True)
+class DeclareBankruptcyOutputDTO:
+    game_id: int
+    bankrupt_player_id: int
+    bankrupt_player_name: str
+    creditor_player_id: Optional[int]
+    creditor_player_name: Optional[str]
+    cash_transferred: int
+    properties_transferred: List[str]
+    liquidated_houses: int
+    liquidated_hotels: int
+    mortgage_interest_paid_to_bank: int
+    unmortgage_principal_paid_to_bank: int
+    released_to_auction_tiles: List[str]
+    remaining_active_players_count: int
+    is_game_finished: bool
+    winner_player_id: Optional[int]
+    winner_player_name: Optional[str]
+    transaction_id: int
+    message: str = ""

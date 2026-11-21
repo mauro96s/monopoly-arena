@@ -6,6 +6,7 @@ from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import TransactionType
+from src.domain.rules.rule_hooks import RulesetEngine
 from src.domain.exceptions import (
     GameNotFoundError,
     PlayerNotFoundError,
@@ -73,6 +74,8 @@ class BankActionUseCase:
             if not player.can_afford(amount):
                 raise InsufficientFundsError(f"Fondos insuficientes (${amount} requeridos, saldo actual: ${player.money}).")
             player.deduct_money(amount)
+            RulesetEngine.process_tax_or_fine(game, player, amount)
+            self._game_repo.save(game)
             src_id = player.id
             tgt_id = None
             tx_type = TransactionType.TAX_PAYMENT if "TAX" in dto.action_type else TransactionType.BANK_TRANSFER

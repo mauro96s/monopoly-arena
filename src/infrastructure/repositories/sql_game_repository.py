@@ -1,8 +1,10 @@
+import json
 from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.models.game import Game
+from src.domain.rules.ruleset_config import RulesetConfig
 from src.infrastructure.orm.models import GameModel
 
 
@@ -17,6 +19,9 @@ class SqlGameRepository(GameRepositoryProtocol):
             "theme_id VARCHAR(32) DEFAULT 'classic'",
             "available_houses INTEGER DEFAULT 32",
             "available_hotels INTEGER DEFAULT 12",
+            "ruleset_config VARCHAR(512) DEFAULT '{}'",
+            "free_parking_pool INTEGER DEFAULT 0",
+            "pending_auction_tiles VARCHAR(512) DEFAULT '[]'",
         ]:
             try:
                 self._session.execute(text(f"ALTER TABLE games ADD COLUMN {col_def}"))
@@ -27,6 +32,23 @@ class SqlGameRepository(GameRepositoryProtocol):
     def _to_domain(self, model: GameModel) -> Game:
         houses = getattr(model, "available_houses", 32)
         hotels = getattr(model, "available_hotels", 12)
+        pool = getattr(model, "free_parking_pool", 0)
+
+        # Parsear ruleset_config
+        raw_ruleset = getattr(model, "ruleset_config", "{}")
+        try:
+            ruleset_dict = json.loads(raw_ruleset) if isinstance(raw_ruleset, str) else (raw_ruleset or {})
+        except Exception:
+            ruleset_dict = {}
+        ruleset = RulesetConfig.from_dict(ruleset_dict)
+
+        # Parsear pending_auction_tiles
+        raw_auctions = getattr(model, "pending_auction_tiles", "[]")
+        try:
+            auctions_list = json.loads(raw_auctions) if isinstance(raw_auctions, str) else (raw_auctions or [])
+        except Exception:
+            auctions_list = []
+
         return Game(
             id=model.id,
             code=model.code,
@@ -40,6 +62,9 @@ class SqlGameRepository(GameRepositoryProtocol):
             consecutive_doubles=int(getattr(model, "consecutive_doubles", 0)),
             available_houses=32 if houses is None else int(houses),
             available_hotels=12 if hotels is None else int(hotels),
+            ruleset_config=ruleset,
+            free_parking_pool=0 if pool is None else int(pool),
+            pending_auction_tiles=auctions_list,
         )
 
     def get_by_id(self, game_id: int) -> Optional[Game]:
@@ -55,6 +80,9 @@ class SqlGameRepository(GameRepositoryProtocol):
         return [self._to_domain(m) for m in models]
 
     def save(self, game: Game) -> Game:
+        ruleset_json = json.dumps(game.get_ruleset().to_dict())
+        auctions_json = json.dumps(game.pending_auction_tiles)
+
         if game.id is None:
             model = GameModel(
                 code=game.code,
@@ -68,6 +96,9 @@ class SqlGameRepository(GameRepositoryProtocol):
                 consecutive_doubles=game.consecutive_doubles,
                 available_houses=game.available_houses,
                 available_hotels=game.available_hotels,
+                ruleset_config=ruleset_json,
+                free_parking_pool=game.free_parking_pool,
+                pending_auction_tiles=auctions_json,
             )
             self._session.add(model)
             self._session.commit()
@@ -86,6 +117,9 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.consecutive_doubles = game.consecutive_doubles
                 model.available_houses = game.available_houses
                 model.available_hotels = game.available_hotels
+                model.ruleset_config = ruleset_json
+                model.free_parking_pool = game.free_parking_pool
+                model.pending_auction_tiles = auctions_json
                 self._session.commit()
             return game
 

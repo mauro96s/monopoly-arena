@@ -4,6 +4,7 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.rules.rule_registry import BoardRuleRegistry
+from src.domain.rules.rule_hooks import RulesetEngine
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import TransactionType
 from src.domain.exceptions import (
@@ -67,11 +68,14 @@ class PayRentUseCase:
         owner_properties = self._property_repo.list_by_owner(game.id, owner.id)
 
         # 6. Calcular Renta Automática (Monopolio x2, Casas, Hoteles, Estaciones, Servicios)
-        rent_amount = tile_strategy.calculate_rent(
-            property_state=prop_state,
-            owner_properties=owner_properties,
-            dice_roll=dto.dice_roll,
-        )
+        if not RulesetEngine.can_collect_rent(game, owner):
+            rent_amount = 0
+        else:
+            rent_amount = tile_strategy.calculate_rent(
+                property_state=prop_state,
+                owner_properties=owner_properties,
+                dice_roll=dto.dice_roll,
+            )
 
         is_monopoly_doubled = False
         group_tiles = BoardRuleRegistry.get_group_tile_ids(game.variant, tile_strategy.definition.group)

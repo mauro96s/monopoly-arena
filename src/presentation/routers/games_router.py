@@ -20,6 +20,7 @@ from src.domain.models.player import Player
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import GameStatus, GameVariant, TransactionType
 from src.domain.rules.rule_registry import BoardRuleRegistry
+from src.domain.rules.ruleset_config import RulesetConfig
 from src.domain.themes import ThemeRegistry, ThemeDefinition
 
 router = APIRouter(prefix="/games", tags=["Games"])
@@ -37,6 +38,9 @@ class GameResponse(BaseModel):
     consecutive_doubles: int = 0
     available_houses: int = 32
     available_hotels: int = 12
+    ruleset_config: dict = {}
+    free_parking_pool: int = 0
+    pending_auction_tiles: List[str] = []
 
 
 class PlayerResponse(BaseModel):
@@ -159,7 +163,15 @@ def create_game(
 
     variant = GameVariant(payload.variant.upper()) if payload.variant else GameVariant.CLASSIC
     theme_id = payload.theme_id or "classic"
-    new_game = Game(id=None, code=payload.code, variant=variant, theme_id=theme_id, status=GameStatus.WAITING)
+    ruleset = RulesetConfig.from_dict(payload.ruleset_config) if getattr(payload, "ruleset_config", None) else RulesetConfig()
+    new_game = Game(
+        id=None,
+        code=payload.code,
+        variant=variant,
+        theme_id=theme_id,
+        ruleset_config=ruleset,
+        status=GameStatus.WAITING,
+    )
     saved = game_repo.save(new_game)
     return GameResponse(
         id=saved.id,  # type: ignore
@@ -173,6 +185,9 @@ def create_game(
         consecutive_doubles=saved.consecutive_doubles,
         available_houses=saved.available_houses,
         available_hotels=saved.available_hotels,
+        ruleset_config=saved.get_ruleset().to_dict(),
+        free_parking_pool=saved.free_parking_pool,
+        pending_auction_tiles=list(saved.pending_auction_tiles),
     )
 
 
@@ -196,6 +211,9 @@ def get_game(
         consecutive_doubles=game.consecutive_doubles,
         available_houses=game.available_houses,
         available_hotels=game.available_hotels,
+        ruleset_config=game.get_ruleset().to_dict(),
+        free_parking_pool=game.free_parking_pool,
+        pending_auction_tiles=list(game.pending_auction_tiles),
     )
 
 
@@ -256,6 +274,9 @@ def advance_turn(
         consecutive_doubles=saved.consecutive_doubles,
         available_houses=saved.available_houses,
         available_hotels=saved.available_hotels,
+        ruleset_config=saved.get_ruleset().to_dict(),
+        free_parking_pool=saved.free_parking_pool,
+        pending_auction_tiles=list(saved.pending_auction_tiles),
     )
 
 

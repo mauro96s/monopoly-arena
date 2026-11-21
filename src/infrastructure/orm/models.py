@@ -23,6 +23,9 @@ class GameModel(Base):
     consecutive_doubles = Column(Integer, default=0, nullable=False)
     available_houses = Column(Integer, default=32, nullable=False)
     available_hotels = Column(Integer, default=12, nullable=False)
+    ruleset_config = Column(String(512), default="{}", nullable=False)
+    free_parking_pool = Column(Integer, default=0, nullable=False)
+    pending_auction_tiles = Column(String(512), default="[]", nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
     # Relaciones
@@ -61,6 +64,7 @@ class PropertyStateModel(Base):
     houses_count = Column(Integer, default=0, nullable=False)
     hotels_count = Column(Integer, default=0, nullable=False)
     is_mortgaged = Column(Boolean, default=False, nullable=False)
+    transfer_interest_paid = Column(Boolean, default=False, nullable=False)
 
     # Relaciones
     game = relationship("GameModel", back_populates="properties")

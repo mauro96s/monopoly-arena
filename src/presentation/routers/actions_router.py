@@ -11,6 +11,8 @@ from src.presentation.schemas.action_schemas import (
     BuildHouseResponse,
     SellBuildingRequest,
     SellBuildingResponse,
+    DeclareBankruptcyRequest,
+    DeclareBankruptcyResponse,
     MortgageRequest,
     MortgageResponse,
     JailActionRequest,
@@ -30,6 +32,7 @@ from src.application.dtos.action_dtos import (
     PayRentInputDTO,
     BuildHouseInputDTO,
     SellBuildingInputDTO,
+    DeclareBankruptcyInputDTO,
     MortgageInputDTO,
     JailActionInputDTO,
     BankActionInputDTO,
@@ -42,6 +45,7 @@ from src.application.use_cases import (
     PayRentUseCase,
     BuildHouseUseCase,
     SellBuildingUseCase,
+    DeclareBankruptcyUseCase,
     MortgagePropertyUseCase,
     JailActionUseCase,
     BankActionUseCase,
@@ -58,6 +62,7 @@ from src.presentation.dependencies import (
     get_pay_rent_use_case,
     get_build_house_use_case,
     get_sell_building_use_case,
+    get_declare_bankruptcy_use_case,
     get_mortgage_property_use_case,
     get_jail_action_use_case,
     get_bank_action_use_case,
@@ -381,6 +386,45 @@ def sell_building(
             remaining_balance=result.remaining_balance,
             available_houses=result.available_houses,
             available_hotels=result.available_hotels,
+            transaction_id=result.transaction_id,
+            message=result.message,
+        )
+    except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (InsufficientFundsError, InvalidGameActionError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/declare-bankruptcy", response_model=DeclareBankruptcyResponse, status_code=status.HTTP_200_OK)
+def declare_bankruptcy(
+    game_id: int,
+    payload: DeclareBankruptcyRequest,
+    use_case: DeclareBankruptcyUseCase = Depends(get_declare_bankruptcy_use_case),
+):
+    dto = DeclareBankruptcyInputDTO(
+        game_id=game_id,
+        bankrupt_player_id=payload.bankrupt_player_id,
+        creditor_player_id=payload.creditor_player_id,
+        unmortgage_transferred_properties=payload.unmortgage_transferred_properties,
+    )
+    try:
+        result = use_case.execute(dto)
+        return DeclareBankruptcyResponse(
+            success=True,
+            game_id=result.game_id,
+            bankrupt_player_id=result.bankrupt_player_id,
+            bankrupt_player_name=result.bankrupt_player_name,
+            creditor_player_id=result.creditor_player_id,
+            creditor_player_name=result.creditor_player_name,
+            cash_transferred=result.cash_transferred,
+            properties_transferred=result.properties_transferred,
+            mortgage_interest_paid_to_bank=result.mortgage_interest_paid_to_bank,
+            unmortgage_principal_paid_to_bank=result.unmortgage_principal_paid_to_bank,
+            released_to_auction_tiles=result.released_to_auction_tiles,
+            remaining_active_players_count=result.remaining_active_players_count,
+            is_game_finished=result.is_game_finished,
+            winner_player_id=result.winner_player_id,
+            winner_player_name=result.winner_player_name,
             transaction_id=result.transaction_id,
             message=result.message,
         )

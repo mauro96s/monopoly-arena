@@ -202,6 +202,7 @@
         <span id="game-status-badge" class="uppercase font-bold text-emerald-600">En Curso</span>
         <span>•</span>
         <span>Ronda <strong id="turn-round-number" class="text-slate-700 dark:text-slate-200">#{{ game.current_turn }}</strong></span>
+        <span id="free-parking-pool-badge" class="hidden px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold text-[11px] animate-pulse">🚗 Pozo: $0</span>
       </div>
     </div>
 
@@ -2308,6 +2309,16 @@
     const statusBadgeEl = document.getElementById('game-status-badge');
     if (statusBadgeEl && gameState) statusBadgeEl.textContent = getReadableStatus(gameState.status);
 
+    const poolBadge = document.getElementById('free-parking-pool-badge');
+    if (poolBadge && gameState) {
+      if (gameState.ruleset_config && gameState.ruleset_config.free_parking_jackpot) {
+        poolBadge.classList.remove('hidden');
+        poolBadge.textContent = `🚗 Pozo: $${(gameState.free_parking_pool ?? 0).toLocaleString()}`;
+      } else {
+        poolBadge.classList.add('hidden');
+      }
+    }
+
     const activePlayer = getActivePlayer();
     if (!activePlayer) {
       const navName = document.getElementById('nav-player-name');
@@ -3533,7 +3544,7 @@
               onclick="resolveInsolvency()"
               class="w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-heading font-extrabold text-xs uppercase tracking-wider shadow-md shadow-red-600/30"
             >
-              ⚠️ Declarar Insolvencia / Pasar Turno
+              💀 Declararse en Bancarrota (Liquidación Oficial)
             </button>
           ` : `
             <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-center text-[11px] font-bold text-slate-500">
@@ -3637,43 +3648,39 @@
     const activePlayer = getActivePlayer();
     if (!activePlayer) return;
 
+    const creditorId = (currentDebtState.debtType === 'RENT' && currentDebtState.targetId) ? currentDebtState.targetId : null;
+    await executeDeclareBankruptcy(activePlayer.id, creditorId, false);
+  }
+
+  async function executeDeclareBankruptcy(bankruptPlayerId, creditorPlayerId = null, unmortgageNow = false) {
+    if (!confirm('¿Estás seguro de declararte en bancarrota? Esta acción es irreversible: se liquidarán tus edificios al 50% para el banco y se transferirán o subastarán tus propiedades.')) {
+      return;
+    }
+
     try {
-      if (activePlayer.money > 0) {
-        if (currentDebtState.debtType === 'RENT' && currentDebtState.targetId) {
-          await fetch(`/api/v1/games/${GAME_ID}/actions/transfer-money`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              source_player_id: activePlayer.id,
-              target_player_id: currentDebtState.targetId,
-              amount: activePlayer.money,
-              description: `Liquidación parcial por insolvencia en ${currentDebtState.tileName}`
-            })
-          });
-        } else {
-          await fetch(`/api/v1/games/${GAME_ID}/actions/bank`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              player_id: activePlayer.id,
-              action_type: 'PLAYER_PAYS_BANK',
-              custom_amount: activePlayer.money,
-              description: 'Liquidación por insolvencia con el Banco',
-              auto_advance_turn: false
-            })
-          });
-        }
+      const res = await fetch(`/api/v1/games/${GAME_ID}/actions/declare-bankruptcy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bankrupt_player_id: bankruptPlayerId,
+          creditor_player_id: creditorPlayerId,
+          unmortgage_transferred_properties: unmortgageNow
+        })
+      });
+
+      if (!res.ok) {
+        let errData;
+        try { errData = await res.json(); } catch (_) { errData = { detail: res.statusText }; }
+        throw new Error(parseApiError(errData));
       }
 
-      showToast(`Insolvencia resuelta. El turno pasa al siguiente jugador.`, 'info');
+      const data = await res.json();
+      showToast(data.message || 'Bancarrota oficial procesada.', 'info');
       currentDebtState = null;
       dismissContextualAction();
-      await advanceTurn();
+      await refreshGameData();
     } catch (e) {
       showToast(parseApiError(e), 'error');
-      currentDebtState = null;
-      dismissContextualAction();
-      await advanceTurn();
     }
   }
 

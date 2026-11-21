@@ -5,6 +5,7 @@ from src.application.use_cases.pay_rent import PayRentUseCase
 from src.application.use_cases.build_house import BuildHouseUseCase
 from src.application.use_cases.sell_building import SellBuildingUseCase
 from src.application.use_cases.mortgage_property import MortgagePropertyUseCase
+from src.application.use_cases.declare_bankruptcy import DeclareBankruptcyUseCase
 from src.application.use_cases.jail_action import JailActionUseCase
 from src.application.use_cases.bank_action import BankActionUseCase
 from src.application.use_cases.roll_dice import RollDiceUseCase, MovePlayerByDiceUseCase
@@ -18,6 +19,7 @@ __all__ = [
     "BuildHouseUseCase",
     "SellBuildingUseCase",
     "MortgagePropertyUseCase",
+    "DeclareBankruptcyUseCase",
     "JailActionUseCase",
     "BankActionUseCase",
     "RollDiceUseCase",

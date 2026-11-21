@@ -8,6 +8,7 @@ from src.domain.interfaces.transaction_repository import TransactionRepositoryPr
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import TransactionType, TileType, GameStatus, PropertyGroup
 from src.domain.rules.rule_registry import BoardRuleRegistry
+from src.domain.rules.rule_hooks import RulesetEngine
 from src.domain.exceptions import (
     GameNotFoundError,
     PlayerNotFoundError,
@@ -159,20 +160,23 @@ class RollDiceUseCase:
             game.consecutive_doubles = 0
             game.has_rolled_dice = True
 
-        # 7. Movimiento y Detección de Salida (GO)
+        # 7. Movimiento y Detección de Salida (GO configurable vía RulesetEngine)
         new_position = (old_position + total_roll) % 40
         passed_go = (new_position < old_position)
+        is_exact_go = (new_position == 0)
         go_tx_id = None
-        if passed_go:
-            player.add_money(200)
+        if passed_go or is_exact_go:
+            go_amount = RulesetEngine.calculate_go_salary(game, player, is_exact_landing=is_exact_go)
+            player.add_money(go_amount)
+            desc_action = "cayó exactamente en" if is_exact_go else "pasó por"
             go_tx = self._tx_repo.record(
                 Transaction(
                     id=None,
                     game_id=game.id,
                     turn_number=game.current_turn,
                     transaction_type=TransactionType.PASS_GO,
-                    amount=200,
-                    description=f"🚩 {player.name} pasó por la SALIDA y cobró $200 de la Banca",
+                    amount=go_amount,
+                    description=f"🚩 {player.name} {desc_action} la SALIDA y cobró ${go_amount} de la Banca",
                     source_player_id=None,
                     target_player_id=player.id,
                     tile_id="GO",
@@ -352,6 +356,9 @@ class RollDiceUseCase:
             if tax_to_pay > 0:
                 player.deduct_money(tax_to_pay)
                 self._player_repo.save(player)
+                # Si la regla de pozo de Parada Libre está activa, alimenta el pozo
+                RulesetEngine.process_tax_or_fine(game, player, tax_to_pay)
+                self._game_repo.save(game)
 
             tax_tx = self._tx_repo.record(
                 Transaction(
@@ -388,6 +395,30 @@ class RollDiceUseCase:
             }
 
         # CASO E: Casilla Neutral (Salida, Visitas, Parking)
+        elif new_position == 20:
+            jackpot = RulesetEngine.process_free_parking(game, player)
+            if jackpot > 0:
+                self._player_repo.save(player)
+                self._game_repo.save(game)
+                jackpot_tx = self._tx_repo.record(
+                    Transaction(
+                        id=None,
+                        game_id=game.id,
+                        turn_number=game.current_turn,
+                        transaction_type=TransactionType.FREE_PARKING_JACKPOT,
+                        amount=jackpot,
+                        description=f"🎉 {player.name} cayó en Parking Gratuito y cobró el pozo acumulado de ${jackpot}",
+                        source_player_id=None,
+                        target_player_id=player.id,
+                        tile_id="FREE_PARKING",
+                    )
+                )
+                last_tx_id = jackpot_tx.id
+                action_required = "FREE_PARKING_JACKPOT_COLLECTED"
+                action_details = {"jackpot_amount": jackpot, "tile_name": tile_def.name}
+            else:
+                action_required = "NEUTRAL"
+                action_details = {"tile_name": tile_def.name}
         else:
             action_required = "NEUTRAL"
             action_details = {"tile_name": tile_def.name}

@@ -12,6 +12,7 @@ class PropertyState:
     houses_count: int = 0
     hotels_count: int = 0
     is_mortgaged: bool = False
+    transfer_interest_paid: bool = False
 
     @property
     def is_owned(self) -> bool:

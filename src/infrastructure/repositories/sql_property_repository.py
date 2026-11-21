@@ -1,4 +1,5 @@
 from typing import Optional, List
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.models.property import PropertyState
@@ -8,6 +9,14 @@ from src.infrastructure.orm.models import PropertyStateModel
 class SqlPropertyRepository(PropertyRepositoryProtocol):
     def __init__(self, session: Session):
         self._session = session
+        self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        try:
+            self._session.execute(text("ALTER TABLE property_states ADD COLUMN transfer_interest_paid BOOLEAN DEFAULT 0"))
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
 
     def _to_domain(self, model: PropertyStateModel) -> PropertyState:
         return PropertyState(
@@ -19,6 +28,7 @@ class SqlPropertyRepository(PropertyRepositoryProtocol):
             houses_count=model.houses_count,
             hotels_count=model.hotels_count,
             is_mortgaged=model.is_mortgaged,
+            transfer_interest_paid=bool(getattr(model, "transfer_interest_paid", False)),
         )
 
     def get_by_tile(self, game_id: int, tile_id: str) -> Optional[PropertyState]:
@@ -56,6 +66,7 @@ class SqlPropertyRepository(PropertyRepositoryProtocol):
                 houses_count=property_state.houses_count,
                 hotels_count=property_state.hotels_count,
                 is_mortgaged=property_state.is_mortgaged,
+                transfer_interest_paid=property_state.transfer_interest_paid,
             )
             self._session.add(model)
             self._session.commit()
@@ -69,5 +80,6 @@ class SqlPropertyRepository(PropertyRepositoryProtocol):
                 model.houses_count = property_state.houses_count
                 model.hotels_count = property_state.hotels_count
                 model.is_mortgaged = property_state.is_mortgaged
+                model.transfer_interest_paid = property_state.transfer_interest_paid
                 self._session.commit()
             return property_state

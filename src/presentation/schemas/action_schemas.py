@@ -205,6 +205,33 @@ class CreateGameRequest(BaseModel):
     code: str = Field(..., min_length=3, max_length=16, description="Código de sala (ej: 'SALA123')")
     variant: Optional[str] = "CLASSIC"
     theme_id: Optional[str] = Field("classic", description="ID del tema visual (ej: 'classic', 'pokemon', 'harry_potter')")
+    ruleset_config: Optional[dict] = Field(None, description="Configuración de variantes de reglas (ej: free_parking_jackpot, double_salary_on_exact_go)")
+
+
+class DeclareBankruptcyRequest(BaseModel):
+    bankrupt_player_id: int = Field(..., description="ID del jugador que se declara en quiebra")
+    creditor_player_id: Optional[int] = Field(None, description="ID del jugador acreedor; None si la quiebra es frente al Banco")
+    unmortgage_transferred_properties: bool = Field(False, description="Si el acreedor desea deshipotecar de inmediato las propiedades transferidas pagando el 50%")
+
+
+class DeclareBankruptcyResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    bankrupt_player_id: int
+    bankrupt_player_name: str
+    creditor_player_id: Optional[int] = None
+    creditor_player_name: Optional[str] = None
+    cash_transferred: int
+    properties_transferred: list[str] = []
+    mortgage_interest_paid_to_bank: int = 0
+    unmortgage_principal_paid_to_bank: int = 0
+    released_to_auction_tiles: list[str] = []
+    remaining_active_players_count: int
+    is_game_finished: bool
+    winner_player_id: Optional[int] = None
+    winner_player_name: Optional[str] = None
+    transaction_id: int
+    message: str = ""
 
 
 class AddPlayerRequest(BaseModel):

@@ -52,7 +52,6 @@ class MortgagePropertyUseCase:
 
         price = tile_strategy.definition.price
         mortgage_value = price // 2
-        unmortgage_cost = int(mortgage_value * 1.1)
 
         if not prop_state.is_mortgaged:
             # Hipotecar: regla oficial, ninguna propiedad del grupo de color puede tener casas ni hoteles construidos
@@ -69,6 +68,7 @@ class MortgagePropertyUseCase:
                     )
 
             prop_state.is_mortgaged = True
+            prop_state.transfer_interest_paid = False
             player.add_money(mortgage_value)
             desc = f"{player.name} hipotecó {tile_strategy.definition.name} y recibió ${mortgage_value} del Banco"
             tx_type = TransactionType.MORTGAGE
@@ -76,15 +76,23 @@ class MortgagePropertyUseCase:
             src_id = None
             tgt_id = player.id
         else:
-            # Deshipotecar
+            # Deshipotecar: si el acreedor ya pagó el 10% de interés al transferir, solo abona el valor base
+            if prop_state.transfer_interest_paid:
+                unmortgage_cost = mortgage_value
+                interest_note = " (sin recargo de interés por haberse abonado al transferir en bancarrota)"
+            else:
+                unmortgage_cost = int(mortgage_value * 1.1)
+                interest_note = ""
+
             if not player.can_afford(unmortgage_cost):
                 raise InsufficientFundsError(
                     f"Saldo insuficiente para deshipotecar (${unmortgage_cost} requeridos, saldo: ${player.money})."
                 )
 
             prop_state.is_mortgaged = False
+            prop_state.transfer_interest_paid = False
             player.deduct_money(unmortgage_cost)
-            desc = f"{player.name} deshipotecó {tile_strategy.definition.name} pagando ${unmortgage_cost} al Banco"
+            desc = f"{player.name} deshipotecó {tile_strategy.definition.name} pagando ${unmortgage_cost} al Banco{interest_note}"
             tx_type = TransactionType.UNMORTGAGE
             amount = unmortgage_cost
             src_id = player.id
