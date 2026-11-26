@@ -287,3 +287,34 @@ class DeclareBankruptcyOutputDTO:
     winner_player_name: Optional[str]
     transaction_id: int
     message: str = ""
+
+
+@dataclass(frozen=True)
+class DrawCardInputDTO:
+    game_id: int
+    player_id: int
+    deck_type: str
+    card_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class DrawCardOutputDTO:
+    game_id: int
+    player_id: int
+    player_name: str
+    deck_type: str
+    deck_name: str
+    card_id: str
+    title: str
+    description: str
+    effect_type: str
+    amount_delta: int
+    old_position: int
+    new_position: int
+    passed_go: bool
+    in_jail: bool
+    out_of_jail_cards_count: int
+    transaction_id: Optional[int] = None
+    landed_tile_action: Optional[str] = None
+    landed_tile_details: Optional[dict] = None
+    message: str = ""

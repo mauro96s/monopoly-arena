@@ -25,6 +25,8 @@ from src.presentation.schemas.action_schemas import (
     PlayerRankingSchema,
     RollDiceRequest,
     RollDiceResponse,
+    DrawCardRequest,
+    DrawCardResponse,
 )
 from src.application.dtos.action_dtos import (
     BuyPropertyInputDTO,
@@ -38,6 +40,7 @@ from src.application.dtos.action_dtos import (
     BankActionInputDTO,
     TransferMoneyInputDTO,
     RollDiceInputDTO,
+    DrawCardInputDTO,
 )
 from src.application.use_cases import (
     BuyPropertyUseCase,
@@ -53,6 +56,7 @@ from src.application.use_cases import (
     FinishGameUseCase,
     RollDiceUseCase,
     MovePlayerByDiceUseCase,
+    DrawCardUseCase,
 )
 from src.presentation.dependencies import (
     get_game_repository,
@@ -70,6 +74,7 @@ from src.presentation.dependencies import (
     get_finish_game_use_case,
     get_roll_dice_use_case,
     get_move_player_by_dice_use_case,
+    get_draw_card_use_case,
 )
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
@@ -626,4 +631,47 @@ def finish_game_action(
             transaction_id=result.transaction_id,
         )
     except (GameNotFoundError, InvalidGameActionError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/draw-card", response_model=DrawCardResponse, status_code=status.HTTP_200_OK)
+def draw_card_action(
+    game_id: int,
+    payload: DrawCardRequest,
+    use_case: DrawCardUseCase = Depends(get_draw_card_use_case),
+):
+    """Roba y ejecuta una carta de Fortuna o Arca Comunal (Manual / Auditoría)."""
+    dto = DrawCardInputDTO(
+        game_id=game_id,
+        player_id=payload.player_id,
+        deck_type=payload.deck_type,
+        card_id=payload.card_id,
+    )
+    try:
+        result = use_case.execute(dto)
+        return DrawCardResponse(
+            success=True,
+            game_id=result.game_id,
+            player_id=result.player_id,
+            player_name=result.player_name,
+            deck_type=result.deck_type,
+            deck_name=result.deck_name,
+            card_id=result.card_id,
+            title=result.title,
+            description=result.description,
+            effect_type=result.effect_type,
+            amount_delta=result.amount_delta,
+            old_position=result.old_position,
+            new_position=result.new_position,
+            passed_go=result.passed_go,
+            in_jail=result.in_jail,
+            out_of_jail_cards_count=result.out_of_jail_cards_count,
+            transaction_id=result.transaction_id,
+            landed_tile_action=result.landed_tile_action,
+            landed_tile_details=result.landed_tile_details,
+            message=result.message,
+        )
+    except (GameNotFoundError, PlayerNotFoundError) as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except (InsufficientFundsError, InvalidGameActionError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

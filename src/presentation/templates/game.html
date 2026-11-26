@@ -3216,20 +3216,27 @@
       rollData.action_required === 'CHANCE_OR_COMMUNITY' ||
       rollData.action_required === 'DRAW_CHANCE' ||
       rollData.action_required === 'DRAW_COMMUNITY_CHEST' ||
+      rollData.action_required === 'CARD_CHANCE' ||
+      rollData.action_required === 'CARD_COMMUNITY_CHEST' ||
       rollData.action_required === 'CHANCE' ||
       rollData.action_required === 'COMMUNITY_CHEST' ||
       rollData.landed_tile_type === 'CHANCE' ||
       rollData.landed_tile_type === 'COMMUNITY_CHEST' ||
+      rollData.action_details?.card_id ||
       [2, 7, 17, 22, 33, 36].includes(rollData.new_position) ||
       /suerte|chance|caja|comunidad|arca/i.test(rollData.landed_tile_name || '')
     ) {
-      const isChance = (
-        rollData.landed_tile_type === 'CHANCE' ||
-        rollData.action_details?.tile_type === 'CHANCE' ||
-        [7, 22, 36].includes(rollData.new_position) ||
-        /suerte|chance/i.test(rollData.landed_tile_name || '')
-      );
-      renderFlexibleBankCard(rollData.landed_tile_name, isChance);
+      if (rollData.action_details?.card_id) {
+        renderDrawnCardModal(rollData);
+      } else {
+        const isChance = (
+          rollData.landed_tile_type === 'CHANCE' ||
+          rollData.action_details?.tile_type === 'CHANCE' ||
+          [7, 22, 36].includes(rollData.new_position) ||
+          /suerte|chance/i.test(rollData.landed_tile_name || '')
+        );
+        renderFlexibleBankCard(rollData.landed_tile_name, isChance);
+      }
     } else {
       content.innerHTML = `
         <div class="space-y-3">
@@ -3274,6 +3281,99 @@
     currentDebtState = null;
     pendingLandedRollData = null;
     isPaused = false;
+  }
+
+  // ========================================================
+  // SUERTE Y ARCA COMUNAL: MODAL DE CARTA ROBADA OFICIAL
+  // ========================================================
+  function renderDrawnCardModal(rollData) {
+    const content = document.getElementById('landed-modal-content');
+    if (!content) return;
+    const details = rollData.action_details || {};
+    const isChance = (details.deck_type === 'CHANCE' || /suerte|chance/i.test(details.deck_name || ''));
+    const deckName = details.deck_name || (isChance ? 'Fortuna' : 'Arca Comunal');
+    const title = details.title || 'Tarjeta Robada';
+    const desc = details.description || details.message || '';
+    const amountDelta = Number(details.amount_delta || 0);
+
+    let impactBadge = '';
+    if (amountDelta > 0) {
+      impactBadge = `
+        <div class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-center">
+          <span class="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">+ $${amountDelta.toLocaleString()} recibido</span>
+        </div>
+      `;
+    } else if (amountDelta < 0) {
+      impactBadge = `
+        <div class="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-center">
+          <span class="text-xs font-mono font-extrabold text-rose-600 dark:text-rose-400">- $${Math.abs(amountDelta).toLocaleString()} pagado</span>
+        </div>
+      `;
+    }
+
+    let statusBadges = [];
+    if (details.in_jail) statusBadges.push('🚨 Enviado a la Cárcel');
+    if (details.passed_go) statusBadges.push('🚩 Salida Cobrada (+$200)');
+    if (details.new_position !== undefined && details.new_position !== details.old_position) {
+      statusBadges.push(`📍 Casilla #${details.new_position}`);
+    }
+
+    content.innerHTML = `
+      <div class="space-y-3.5 text-left animate-fade-in">
+        <div class="text-center">
+          <div class="w-14 h-14 rounded-2xl ${isChance ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-600 border border-amber-300 dark:border-amber-700' : 'bg-sky-100 dark:bg-sky-950/80 text-sky-600 border border-sky-300 dark:border-sky-700'} mx-auto flex items-center justify-center text-3xl shadow-sm">
+            ${isChance ? '❓' : '🧰'}
+          </div>
+          <span class="text-[10px] font-mono uppercase font-bold text-slate-400 tracking-wider block mt-1.5">${deckName}</span>
+          <h3 class="text-base sm:text-lg font-heading font-extrabold text-slate-900 dark:text-white leading-tight">
+            ${title}
+          </h3>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-300 text-center italic">
+          "${desc}"
+        </div>
+
+        ${impactBadge}
+
+        ${statusBadges.length > 0 ? `
+          <div class="flex flex-wrap gap-1.5 justify-center">
+            ${statusBadges.map(b => `<span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300">${b}</span>`).join('')}
+          </div>
+        ` : ''}
+
+        <div class="pt-2 flex flex-col gap-2">
+          ${details.landed_tile_action === 'BUY_PROPERTY' && details.landed_tile_details ? `
+            <button
+              type="button"
+              onclick="dismissContextualAction(); executeContextualBuy('${details.landed_tile_details.tile_id}', '${details.landed_tile_details.tile_name}', ${details.landed_tile_details.price});"
+              class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer"
+            >
+              Comprar ${details.landed_tile_details.tile_name} ($${details.landed_tile_details.price})
+            </button>
+          ` : ''}
+
+          <button
+            type="button"
+            onclick="dismissContextualAction(); ${rollData.extra_turn ? 'openTurnModal();' : 'advanceTurn();'}"
+            class="w-full py-2.5 px-4 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-emerald-600 hover:text-white active:scale-95 font-heading font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer"
+          >
+            ${rollData.extra_turn ? '✨ Tirar Otra Vez (Dobles)' : 'Entendido / Continuar Turno →'}
+          </button>
+
+          <button
+            type="button"
+            onclick="renderFlexibleBankCard('${rollData.landed_tile_name}', ${isChance})"
+            class="w-full py-1.5 text-[11px] font-mono text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline text-center cursor-pointer"
+          >
+            Ajustar saldo con la Banca manualmente
+          </button>
+        </div>
+      </div>
+    `;
+
+    const landedModal = document.getElementById('landed-action-modal');
+    if (landedModal) landedModal.classList.remove('hidden');
   }
 
   // ========================================================

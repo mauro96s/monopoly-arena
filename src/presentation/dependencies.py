@@ -21,6 +21,7 @@ from src.application.use_cases.jail_action import JailActionUseCase
 from src.application.use_cases.bank_action import BankActionUseCase
 from src.application.use_cases.roll_dice import RollDiceUseCase
 from src.application.use_cases.finish_game import FinishGameUseCase
+from src.application.use_cases.draw_card import DrawCardUseCase
 
 
 # Inyección de Repositorios cumpliendo Dependency Inversion
@@ -134,6 +135,20 @@ def get_declare_bankruptcy_use_case(
         player_repo=player_repo,
         property_repo=property_repo,
         transaction_repo=transaction_repo,
+    )
+
+
+def get_draw_card_use_case(
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+    property_repo: PropertyRepositoryProtocol = Depends(get_property_repository),
+    transaction_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
+) -> DrawCardUseCase:
+    return DrawCardUseCase(
+        game_repo=game_repo,
+        player_repo=player_repo,
+        property_repo=property_repo,
+        tx_repo=transaction_repo,
     )
 
 

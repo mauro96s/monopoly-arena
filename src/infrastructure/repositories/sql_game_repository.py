@@ -22,6 +22,8 @@ class SqlGameRepository(GameRepositoryProtocol):
             "ruleset_config VARCHAR(512) DEFAULT '{}'",
             "free_parking_pool INTEGER DEFAULT 0",
             "pending_auction_tiles VARCHAR(512) DEFAULT '[]'",
+            "chance_deck_order VARCHAR(1024) DEFAULT '[]'",
+            "community_chest_deck_order VARCHAR(1024) DEFAULT '[]'",
         ]:
             try:
                 self._session.execute(text(f"ALTER TABLE games ADD COLUMN {col_def}"))
@@ -49,6 +51,20 @@ class SqlGameRepository(GameRepositoryProtocol):
         except Exception:
             auctions_list = []
 
+        # Parsear chance_deck_order
+        raw_chance = getattr(model, "chance_deck_order", "[]")
+        try:
+            chance_list = json.loads(raw_chance) if isinstance(raw_chance, str) else (raw_chance or [])
+        except Exception:
+            chance_list = []
+
+        # Parsear community_chest_deck_order
+        raw_community = getattr(model, "community_chest_deck_order", "[]")
+        try:
+            community_list = json.loads(raw_community) if isinstance(raw_community, str) else (raw_community or [])
+        except Exception:
+            community_list = []
+
         return Game(
             id=model.id,
             code=model.code,
@@ -65,6 +81,8 @@ class SqlGameRepository(GameRepositoryProtocol):
             ruleset_config=ruleset,
             free_parking_pool=0 if pool is None else int(pool),
             pending_auction_tiles=auctions_list,
+            chance_deck_order=chance_list,
+            community_chest_deck_order=community_list,
         )
 
     def get_by_id(self, game_id: int) -> Optional[Game]:
@@ -82,6 +100,8 @@ class SqlGameRepository(GameRepositoryProtocol):
     def save(self, game: Game) -> Game:
         ruleset_json = json.dumps(game.get_ruleset().to_dict())
         auctions_json = json.dumps(game.pending_auction_tiles)
+        chance_json = json.dumps(game.chance_deck_order)
+        community_json = json.dumps(game.community_chest_deck_order)
 
         if game.id is None:
             model = GameModel(
@@ -99,6 +119,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 ruleset_config=ruleset_json,
                 free_parking_pool=game.free_parking_pool,
                 pending_auction_tiles=auctions_json,
+                chance_deck_order=chance_json,
+                community_chest_deck_order=community_json,
             )
             self._session.add(model)
             self._session.commit()
@@ -120,6 +142,8 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.ruleset_config = ruleset_json
                 model.free_parking_pool = game.free_parking_pool
                 model.pending_auction_tiles = auctions_json
+                model.chance_deck_order = chance_json
+                model.community_chest_deck_order = community_json
                 self._session.commit()
             return game
 

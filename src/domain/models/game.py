@@ -29,6 +29,30 @@ class Game:
     ruleset_config: RulesetConfig = field(default_factory=RulesetConfig)
     free_parking_pool: int = 0
     pending_auction_tiles: List[str] = field(default_factory=list)
+    chance_deck_order: List[str] = field(default_factory=list)
+    community_chest_deck_order: List[str] = field(default_factory=list)
+
+    def get_deck_order(self, deck_type_val: str) -> List[str]:
+        if str(deck_type_val).upper() in ("CHANCE", "DECKTYPE.CHANCE"):
+            return self.chance_deck_order
+        return self.community_chest_deck_order
+
+    def set_deck_order(self, deck_type_val: str, order: List[str]) -> None:
+        if str(deck_type_val).upper() in ("CHANCE", "DECKTYPE.CHANCE"):
+            self.chance_deck_order = order
+        else:
+            self.community_chest_deck_order = order
+
+    def pop_next_card(self, deck_type_val: str) -> Optional[str]:
+        order = self.get_deck_order(deck_type_val)
+        if not order:
+            return None
+        return order.pop(0)
+
+    def put_card_at_bottom(self, deck_type_val: str, card_id: str) -> None:
+        order = self.get_deck_order(deck_type_val)
+        if card_id not in order:
+            order.append(card_id)
 
     def get_ruleset(self) -> RulesetConfig:
         if isinstance(self.ruleset_config, RulesetConfig):

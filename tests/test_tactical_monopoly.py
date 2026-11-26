@@ -229,25 +229,25 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.game.has_rolled_dice = False
         self.game_repo.save(self.game)
 
-        # Ana se encuentra en pos 38 y tira 4 -> avanza a pos 2 pasando por la SALIDA
+        # Ana se encuentra en pos 38 y tira 3 -> avanza a pos 1 (Mediterráneo) pasando por la SALIDA
         self.p1.position = 38
         self.p1.money = 1000
         self.player_repo.save(self.p1)
 
         roll_res2 = self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id, player_id=self.p1.id, dice_1=2, dice_2=2
+            game_id=self.game.id, player_id=self.p1.id, dice_1=1, dice_2=2
         ))
         self.assertEqual(roll_res2.old_position, 38)
-        self.assertEqual(roll_res2.new_position, 2)
+        self.assertEqual(roll_res2.new_position, 1)
         self.assertTrue(roll_res2.passed_go)
         # Saldo aumenta automáticamente en $200
         p1_updated = self.player_repo.get_by_id(self.p1.id)
         self.assertEqual(p1_updated.money, 1200)
 
     def test_roll_dice_enforce_single_roll_per_turn(self):
-        # Ana tira los dados sin sacar dobles (3 + 4 = 7)
+        # Ana tira los dados sin sacar dobles (2 + 4 = 6, Av. Oriental)
         self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id, player_id=self.p1.id, dice_1=3, dice_2=4
+            game_id=self.game.id, player_id=self.p1.id, dice_1=2, dice_2=4
         ))
         # Intento de 2da tirada en el mismo turno debe ser rechazado
         with self.assertRaises(InvalidGameActionError):

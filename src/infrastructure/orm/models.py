@@ -26,6 +26,8 @@ class GameModel(Base):
     ruleset_config = Column(String(512), default="{}", nullable=False)
     free_parking_pool = Column(Integer, default=0, nullable=False)
     pending_auction_tiles = Column(String(512), default="[]", nullable=False)
+    chance_deck_order = Column(String(1024), default="[]", nullable=False)
+    community_chest_deck_order = Column(String(1024), default="[]", nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
     # Relaciones

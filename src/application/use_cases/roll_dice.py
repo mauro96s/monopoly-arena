@@ -1,6 +1,7 @@
 import random
 from typing import Optional
-from src.application.dtos.action_dtos import RollDiceInputDTO, RollDiceOutputDTO
+from src.application.dtos.action_dtos import RollDiceInputDTO, RollDiceOutputDTO, DrawCardInputDTO
+from src.application.use_cases.draw_card import DrawCardUseCase
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
@@ -385,13 +386,50 @@ class RollDiceUseCase:
                 "tile_id": tile_def.tile_id,
             }
 
-        # CASO D: Suerte o Caja de Comunidad
+        # CASO D: Suerte o Caja de Comunidad (Robo automático de carta)
         elif tile_def.tile_type in (TileType.CHANCE, TileType.COMMUNITY_CHEST):
-            action_required = "CHANCE_OR_COMMUNITY"
+            deck_type_str = "CHANCE" if tile_def.tile_type == TileType.CHANCE else "COMMUNITY_CHEST"
+            self._game_repo.save(game)
+            draw_card_uc = DrawCardUseCase(
+                self._game_repo, self._player_repo, self._property_repo, self._tx_repo
+            )
+            card_out = draw_card_uc.execute(
+                DrawCardInputDTO(
+                    game_id=game.id,
+                    player_id=player.id,
+                    deck_type=deck_type_str,
+                ),
+                effective_roll=total_roll,
+            )
+
+            # Recargar jugador y partida tras la resolución del efecto
+            player = self._player_repo.get_by_id(player.id)
+            game = self._game_repo.get_by_id(game.id)
+            if card_out.transaction_id:
+                last_tx_id = card_out.transaction_id
+            if card_out.in_jail:
+                extra_turn = False
+                game.has_rolled_dice = False
+            else:
+                game.has_rolled_dice = not extra_turn
+
+            action_required = f"DRAW_{card_out.deck_type}"
             action_details = {
-                "tile_type": tile_def.tile_type.value,
+                "card_id": card_out.card_id,
+                "deck_type": card_out.deck_type,
+                "deck_name": card_out.deck_name,
+                "title": card_out.title,
+                "description": card_out.description,
+                "effect_type": card_out.effect_type,
+                "amount_delta": card_out.amount_delta,
+                "old_position": card_out.old_position,
+                "new_position": card_out.new_position,
+                "passed_go": card_out.passed_go,
+                "in_jail": card_out.in_jail,
+                "landed_tile_action": card_out.landed_tile_action,
+                "landed_tile_details": card_out.landed_tile_details,
                 "tile_name": tile_def.name,
-                "description": f"Has caído en {tile_def.name}. Ajusta saldo con la Banca o continúa el juego.",
+                "message": card_out.message,
             }
 
         # CASO E: Casilla Neutral (Salida, Visitas, Parking)
@@ -456,7 +494,7 @@ class RollDiceUseCase:
             total_roll=total_roll,
             is_doubles=is_doubles,
             old_position=old_position,
-            new_position=new_position,
+            new_position=player.position,
             passed_go=passed_go,
             landed_tile_id=tile_def.tile_id,
             landed_tile_name=tile_def.name,
@@ -464,8 +502,8 @@ class RollDiceUseCase:
             action_required=action_required,
             action_details=action_details,
             player_money=player.money,
-            player_status="ACTIVE",
-            in_jail=False,
+            player_status="IN_JAIL" if player.in_jail else ("BANKRUPT" if player.is_bankrupt else "ACTIVE"),
+            in_jail=player.in_jail,
             extra_turn=extra_turn,
             has_rolled_dice=game.has_rolled_dice,
             consecutive_doubles=game.consecutive_doubles,

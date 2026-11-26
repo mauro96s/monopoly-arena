@@ -304,3 +304,32 @@ class AuctionPropertyResponse(BaseModel):
     transaction_id: int
     current_turn: int
     current_player_index: int
+
+
+class DrawCardRequest(BaseModel):
+    player_id: int
+    deck_type: str = Field(default="CHANCE", description="'CHANCE' o 'COMMUNITY_CHEST'")
+    card_id: Optional[str] = Field(default=None, description="ID específico opcional para auditoría/testing")
+
+
+class DrawCardResponse(BaseModel):
+    success: bool = True
+    game_id: int
+    player_id: int
+    player_name: str
+    deck_type: str
+    deck_name: str
+    card_id: str
+    title: str
+    description: str
+    effect_type: str
+    amount_delta: int
+    old_position: int
+    new_position: int
+    passed_go: bool
+    in_jail: bool
+    out_of_jail_cards_count: int
+    transaction_id: Optional[int] = None
+    landed_tile_action: Optional[str] = None
+    landed_tile_details: Optional[dict] = None
+    message: str = ""
