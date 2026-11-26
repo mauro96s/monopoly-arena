@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
+import random
+import uuid
 from pydantic import BaseModel
 from src.presentation.schemas.action_schemas import (
     CreateGameRequest,
@@ -12,8 +14,9 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.interfaces.rule_preset_repository import RulePresetRepositoryProtocol
-import uuid
+from src.domain.interfaces.theme_repository import ThemeRepositoryProtocol
 from src.domain.models.rule_preset import RulePreset
+from src.domain.models.user import User
 from src.presentation.dependencies import (
     get_game_repository,
     get_player_repository,
@@ -22,8 +25,9 @@ from src.presentation.dependencies import (
     get_finish_game_use_case,
     get_rule_preset_repository,
     get_theme_repository,
+    get_current_user_optional,
 )
-from src.domain.interfaces.theme_repository import ThemeRepositoryProtocol
+from src.presentation.websocket_manager import broadcast_game_event_sync
 from src.application.use_cases.finish_game import FinishGameUseCase
 from src.presentation.schemas.action_schemas import FinishGameResponse, PlayerRankingSchema
 from src.domain.models.game import Game
@@ -54,6 +58,7 @@ class GameResponse(BaseModel):
     ruleset_config: dict = {}
     free_parking_pool: int = 0
     pending_auction_tiles: List[str] = []
+    owner_user_id: Optional[int] = None
 
 
 class PlayerResponse(BaseModel):
@@ -67,6 +72,12 @@ class PlayerResponse(BaseModel):
     in_jail: bool
     jail_turns: int = 0
     out_of_jail_cards: int = 0
+    user_id: Optional[int] = None
+
+
+class JoinGameRequest(BaseModel):
+    name: str
+    token: str
 
 
 class PropertyStateResponse(BaseModel):
@@ -272,6 +283,7 @@ def delete_rule_preset(
 @router.post("", response_model=GameResponse, status_code=status.HTTP_201_CREATED)
 def create_game(
     payload: CreateGameRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
 ):
@@ -293,6 +305,8 @@ def create_game(
     else:
         ruleset = RulesetConfig()
 
+    owner_user_id = current_user.id if isinstance(current_user, User) else None
+
     new_game = Game(
         id=None,
         code=payload.code,
@@ -300,6 +314,7 @@ def create_game(
         theme_id=theme_id,
         ruleset_config=ruleset,
         status=GameStatus.WAITING,
+        owner_user_id=owner_user_id,
     )
     saved = game_repo.save(new_game)
     return GameResponse(
@@ -317,6 +332,35 @@ def create_game(
         ruleset_config=saved.get_ruleset().to_dict(),
         free_parking_pool=saved.free_parking_pool,
         pending_auction_tiles=list(saved.pending_auction_tiles),
+        owner_user_id=saved.owner_user_id,
+    )
+
+
+@router.get("/by-code/{code}", response_model=GameResponse)
+def get_game_by_code(
+    code: str,
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+):
+    """Permite a los jugadores buscar una sala por su código alfanumérico para unirse."""
+    game = game_repo.get_by_code(code.strip())
+    if not game:
+        raise HTTPException(status_code=404, detail=f"Partida con código '{code}' no encontrada.")
+    return GameResponse(
+        id=game.id,  # type: ignore
+        code=game.code,
+        variant=game.variant.value,
+        theme_id=getattr(game, "theme_id", "classic") or "classic",
+        status=game.status.value,
+        current_turn=game.current_turn,
+        current_player_index=game.current_player_index,
+        has_rolled_dice=game.has_rolled_dice,
+        consecutive_doubles=game.consecutive_doubles,
+        available_houses=game.available_houses,
+        available_hotels=game.available_hotels,
+        ruleset_config=game.get_ruleset().to_dict(),
+        free_parking_pool=game.free_parking_pool,
+        pending_auction_tiles=list(game.pending_auction_tiles),
+        owner_user_id=game.owner_user_id,
     )
 
 
@@ -343,6 +387,126 @@ def get_game(
         ruleset_config=game.get_ruleset().to_dict(),
         free_parking_pool=game.free_parking_pool,
         pending_auction_tiles=list(game.pending_auction_tiles),
+        owner_user_id=game.owner_user_id,
+    )
+
+
+@router.post("/{game_id}/join", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
+def join_game_room(
+    game_id: int,
+    payload: JoinGameRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+):
+    """Permite unirse a una sala de espera validando estado, ficha y nombre."""
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    if game.status != GameStatus.WAITING:
+        raise HTTPException(
+            status_code=400,
+            detail="No es posible unirse: la partida ya ha comenzado o finalizado."
+        )
+
+    existing_players = player_repo.list_by_game(game_id)
+    norm_name = payload.name.strip().lower()
+    if any(p.name.strip().lower() == norm_name for p in existing_players):
+        raise HTTPException(status_code=400, detail=f"Ya existe un jugador con el nombre '{payload.name}'.")
+    if any(p.token == payload.token for p in existing_players):
+        raise HTTPException(status_code=400, detail=f"La ficha '{payload.token}' ya fue seleccionada por otro jugador.")
+
+    user_id = current_user.id if isinstance(current_user, User) else None
+    new_player = Player(
+        id=None,
+        game_id=game_id,
+        name=payload.name.strip(),
+        token=payload.token,
+        user_id=user_id,
+    )
+    saved = player_repo.save(new_player)
+
+    # Notificar a los clientes conectados a la sala
+    broadcast_game_event_sync(game_id, "PLAYER_JOINED", {
+        "player_id": saved.id,
+        "name": saved.name,
+        "token": saved.token,
+        "user_id": saved.user_id,
+    })
+
+    return PlayerResponse(
+        id=saved.id,  # type: ignore
+        game_id=saved.game_id,
+        name=saved.name,
+        token=saved.token,
+        money=saved.money,
+        position=saved.position,
+        is_bankrupt=saved.is_bankrupt,
+        in_jail=saved.in_jail,
+        jail_turns=saved.jail_turns,
+        out_of_jail_cards=saved.out_of_jail_cards,
+        user_id=saved.user_id,
+    )
+
+
+@router.post("/{game_id}/start", response_model=GameResponse)
+def start_game_room(
+    game_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Inicia formalmente la partida desde el Lobby, barajando mazos de cartas."""
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    if game.status != GameStatus.WAITING:
+        raise HTTPException(status_code=400, detail="La partida no se encuentra en estado de espera.")
+
+    players = player_repo.list_by_game(game_id)
+    if len(players) < 2:
+        raise HTTPException(status_code=400, detail="Se requieren al menos 2 jugadores para iniciar la partida.")
+
+    # Barajar mazos del tema asignado
+    theme_id = getattr(game, "theme_id", "classic") or "classic"
+    theme = theme_repo.get_by_theme_id(theme_id) or ThemeRegistry.get_theme(theme_id)
+
+    chance_card_ids = [c.card_id for c in theme.chance_cards]
+    chest_card_ids = [c.card_id for c in theme.community_chest_cards]
+    random.shuffle(chance_card_ids)
+    random.shuffle(chest_card_ids)
+
+    game.chance_deck_order = chance_card_ids
+    game.community_chest_deck_order = chest_card_ids
+    game.status = GameStatus.IN_PROGRESS
+    game.current_turn = 1
+    game.current_player_index = 0
+    saved = game_repo.save(game)
+
+    # Notificar a los clientes conectados que la partida inició
+    broadcast_game_event_sync(game_id, "GAME_STARTED", {
+        "game_id": saved.id,
+        "status": saved.status.value,
+        "current_player_index": saved.current_player_index,
+    })
+
+    return GameResponse(
+        id=saved.id,  # type: ignore
+        code=saved.code,
+        variant=saved.variant.value,
+        theme_id=getattr(saved, "theme_id", "classic") or "classic",
+        status=saved.status.value,
+        current_turn=saved.current_turn,
+        current_player_index=saved.current_player_index,
+        has_rolled_dice=saved.has_rolled_dice,
+        consecutive_doubles=saved.consecutive_doubles,
+        available_houses=saved.available_houses,
+        available_hotels=saved.available_hotels,
+        ruleset_config=saved.get_ruleset().to_dict(),
+        free_parking_pool=saved.free_parking_pool,
+        pending_auction_tiles=list(saved.pending_auction_tiles),
+        owner_user_id=saved.owner_user_id,
     )
 
 
@@ -391,6 +555,13 @@ def advance_turn(
     game.advance_turn(len(players))
     game.status = GameStatus.IN_PROGRESS
     saved = game_repo.save(game)
+
+    broadcast_game_event_sync(game_id, "TURN_ADVANCED", {
+        "game_id": saved.id,
+        "current_turn": saved.current_turn,
+        "current_player_index": saved.current_player_index,
+    })
+
     return GameResponse(
         id=saved.id,  # type: ignore
         code=saved.code,
@@ -406,6 +577,7 @@ def advance_turn(
         ruleset_config=saved.get_ruleset().to_dict(),
         free_parking_pool=saved.free_parking_pool,
         pending_auction_tiles=list(saved.pending_auction_tiles),
+        owner_user_id=saved.owner_user_id,
     )
 
 
@@ -829,6 +1001,7 @@ def delete_custom_theme(
 def add_player(
     game_id: int,
     payload: AddPlayerRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
@@ -836,7 +1009,8 @@ def add_player(
     if not game:
         raise HTTPException(status_code=404, detail="Partida no encontrada.")
 
-    new_player = Player(id=None, game_id=game_id, name=payload.name, token=payload.token)
+    user_id = current_user.id if isinstance(current_user, User) else None
+    new_player = Player(id=None, game_id=game_id, name=payload.name, token=payload.token, user_id=user_id)
     saved = player_repo.save(new_player)
     return PlayerResponse(
         id=saved.id,  # type: ignore
@@ -849,6 +1023,7 @@ def add_player(
         in_jail=saved.in_jail,
         jail_turns=saved.jail_turns,
         out_of_jail_cards=saved.out_of_jail_cards,
+        user_id=saved.user_id,
     )
 
 
@@ -870,6 +1045,7 @@ def list_players(
             in_jail=p.in_jail,
             jail_turns=p.jail_turns,
             out_of_jail_cards=p.out_of_jail_cards,
+            user_id=p.user_id,
         )
         for p in players
     ]

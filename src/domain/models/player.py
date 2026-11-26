@@ -14,6 +14,7 @@ class Player:
     in_jail: bool = False
     jail_turns: int = 0
     out_of_jail_cards: int = 0
+    user_id: Optional[int] = None
 
     def can_afford(self, amount: int) -> bool:
         return self.money >= amount

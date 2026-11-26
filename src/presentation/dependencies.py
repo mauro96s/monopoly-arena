@@ -1,4 +1,5 @@
-from fastapi import Depends
+from typing import Optional
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 from src.infrastructure.database import get_db
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
@@ -7,8 +8,12 @@ from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.interfaces.rule_preset_repository import RulePresetRepositoryProtocol
 from src.domain.interfaces.theme_repository import ThemeRepositoryProtocol
+from src.domain.interfaces.user_repository import UserRepositoryProtocol
+from src.domain.models.user import User
 from src.infrastructure.repositories.sql_rule_preset_repository import SqlRulePresetRepository
 from src.infrastructure.repositories.sql_theme_repository import SqlThemeRepository
+from src.infrastructure.repositories.sql_user_repository import SqlUserRepository
+from src.infrastructure.security.token import decode_access_token
 from src.infrastructure.repositories.sql_game_repository import SqlGameRepository
 from src.infrastructure.repositories.sql_player_repository import SqlPlayerRepository
 from src.infrastructure.repositories.sql_property_repository import SqlPropertyRepository
@@ -235,3 +240,39 @@ def get_rule_preset_repository(db: Session = Depends(get_db)) -> RulePresetRepos
 
 def get_theme_repository(db: Session = Depends(get_db)) -> ThemeRepositoryProtocol:
     return SqlThemeRepository(db)
+
+
+def get_user_repository(db: Session = Depends(get_db)) -> UserRepositoryProtocol:
+    return SqlUserRepository(db)
+
+
+def get_current_user_optional(
+    authorization: Optional[str] = Header(None),
+    user_repo: UserRepositoryProtocol = Depends(get_user_repository),
+) -> Optional[User]:
+    """
+    Retorna el usuario autenticado si se proporciona un Bearer token válido.
+    Si no hay token o es inválido, retorna None garantizando compatibilidad hacia atrás.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.split(" ", 1)[1].strip()
+    payload = decode_access_token(token)
+    if not payload or "sub" not in payload:
+        return None
+
+    return user_repo.get_by_id(int(payload["sub"]))
+
+
+def get_current_user(
+    user: Optional[User] = Depends(get_current_user_optional),
+) -> User:
+    """Exige autenticación estricta (401 si no hay usuario válido)."""
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Autenticación requerida. Token ausente o inválido.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user

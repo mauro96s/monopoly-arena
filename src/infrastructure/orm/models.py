@@ -9,6 +9,18 @@ def get_utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UserModel(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(64), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    email = Column(String(128), unique=True, index=True, nullable=True)
+    display_name = Column(String(64), nullable=True)
+    role = Column(String(16), default="USER", nullable=False)
+    created_at = Column(DateTime, default=get_utc_now, nullable=False)
+
+
 class GameModel(Base):
     __tablename__ = "games"
 
@@ -28,6 +40,7 @@ class GameModel(Base):
     pending_auction_tiles = Column(String(512), default="[]", nullable=False)
     chance_deck_order = Column(String(1024), default="[]", nullable=False)
     community_chest_deck_order = Column(String(1024), default="[]", nullable=False)
+    owner_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
     # Relaciones
@@ -49,6 +62,7 @@ class PlayerModel(Base):
     in_jail = Column(Boolean, default=False, nullable=False)
     jail_turns = Column(Integer, default=0, nullable=False)
     out_of_jail_cards = Column(Integer, default=0, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relaciones
     game = relationship("GameModel", back_populates="players")

@@ -221,7 +221,10 @@
         </span>
       </div>
       <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-        <span class="text-xs font-heading font-extrabold text-slate-700 dark:text-slate-200 uppercase">{{ game.code }}</span>
+        <button type="button" onclick="navigator.clipboard.writeText('{{ game.code }}'); showToast('Código {{ game.code }} copiado al portapapeles');" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-heading font-extrabold text-slate-700 dark:text-slate-200 uppercase hover:bg-primary-50 dark:hover:bg-primary-950/40 hover:text-primary-600 transition-colors" title="Clic para copiar código de sala">
+          <span>{{ game.code }}</span>
+          <i data-lucide="copy" class="w-3 h-3 text-slate-400"></i>
+        </button>
         <span>•</span>
         <span id="game-status-badge" class="uppercase font-bold text-emerald-600">En Curso</span>
         <span>•</span>
@@ -6184,9 +6187,43 @@
     }
   }
 
+  // ========================================================
+  // SINCRONIZACIÓN EN TIEMPO REAL VÍA WEBSOCKET
+  // ========================================================
+  let gameWebSocket = null;
+  function initGameWebSocket() {
+    if (!GAME_ID) return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/games/${GAME_ID}`;
+    try {
+      gameWebSocket = new WebSocket(wsUrl);
+      gameWebSocket.onopen = () => {
+        console.log(`[WS] Conectado en vivo a la partida #${GAME_ID}`);
+      };
+      gameWebSocket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          console.log('[WS] Evento recibido en vivo:', msg.event);
+          refreshGameData();
+        } catch (_) {
+          refreshGameData();
+        }
+      };
+      gameWebSocket.onclose = () => {
+        setTimeout(initGameWebSocket, 3000);
+      };
+      gameWebSocket.onerror = (err) => {
+        console.warn('[WS] Advertencia en WebSocket:', err);
+      };
+    } catch (e) {
+      console.warn('[WS] Error inicializando WebSocket:', e);
+    }
+  }
+
   // Inicialización inmediata sincronizando tema y estado
   setDiceMode('AUTO');
   updatePlayPauseUI();
+  initGameWebSocket();
   syncActiveTheme().finally(() => {
     refreshGameData();
   });

@@ -31,6 +31,7 @@ class Game:
     pending_auction_tiles: List[str] = field(default_factory=list)
     chance_deck_order: List[str] = field(default_factory=list)
     community_chest_deck_order: List[str] = field(default_factory=list)
+    owner_user_id: Optional[int] = None
 
     def get_deck_order(self, deck_type_val: str) -> List[str]:
         if str(deck_type_val).upper() in ("CHANCE", "DECKTYPE.CHANCE"):

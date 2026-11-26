@@ -24,6 +24,7 @@ class SqlGameRepository(GameRepositoryProtocol):
             "pending_auction_tiles VARCHAR(512) DEFAULT '[]'",
             "chance_deck_order VARCHAR(1024) DEFAULT '[]'",
             "community_chest_deck_order VARCHAR(1024) DEFAULT '[]'",
+            "owner_user_id INTEGER DEFAULT NULL",
         ]:
             try:
                 self._session.execute(text(f"ALTER TABLE games ADD COLUMN {col_def}"))
@@ -83,6 +84,7 @@ class SqlGameRepository(GameRepositoryProtocol):
             pending_auction_tiles=auctions_list,
             chance_deck_order=chance_list,
             community_chest_deck_order=community_list,
+            owner_user_id=getattr(model, "owner_user_id", None),
         )
 
     def get_by_id(self, game_id: int) -> Optional[Game]:
@@ -121,6 +123,7 @@ class SqlGameRepository(GameRepositoryProtocol):
                 pending_auction_tiles=auctions_json,
                 chance_deck_order=chance_json,
                 community_chest_deck_order=community_json,
+                owner_user_id=game.owner_user_id,
             )
             self._session.add(model)
             self._session.commit()
@@ -143,6 +146,7 @@ class SqlGameRepository(GameRepositoryProtocol):
                 model.free_parking_pool = game.free_parking_pool
                 model.pending_auction_tiles = auctions_json
                 model.chance_deck_order = chance_json
+                model.owner_user_id = game.owner_user_id
                 model.community_chest_deck_order = community_json
                 self._session.commit()
             return game

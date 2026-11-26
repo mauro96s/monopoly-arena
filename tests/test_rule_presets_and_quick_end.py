@@ -421,6 +421,10 @@ class TestRulePresetsAndQuickEnd(unittest.TestCase):
         self.assertIsNotNone(quick_preset)
 
         # 2. Create new custom preset via router
+        existing_prev = self.preset_repo.get_by_name("Preset Router Test")
+        if existing_prev:
+            self.preset_repo.delete(existing_prev.id)
+
         new_preset_req = CreateRulePresetRequest(
             name="Preset Router Test",
             description="Created via endpoint",

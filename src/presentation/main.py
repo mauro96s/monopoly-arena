@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
-from src.presentation.routers import games_router, actions_router, views_router
+from src.presentation.routers import games_router, actions_router, views_router, auth_router
+from src.presentation.websocket_manager import connection_manager
 from src.infrastructure.database import Base, engine
 
 
@@ -27,12 +28,28 @@ def create_app() -> FastAPI:
     app.include_router(views_router.router)
 
     # Rutas API v1
+    app.include_router(auth_router.router, prefix=settings.API_V1_STR)
     app.include_router(games_router.router, prefix=settings.API_V1_STR)
     app.include_router(actions_router.router, prefix=settings.API_V1_STR)
 
     # Rutas de acción y partidas directas (fallback para compatibilidad sin prefijo /api/v1)
+    app.include_router(auth_router.router)
     app.include_router(games_router.router)
     app.include_router(actions_router.router)
+
+    # Canal WebSocket en tiempo real para eventos de sala y partida
+    @app.websocket("/ws/games/{game_id}")
+    async def websocket_game_endpoint(websocket: WebSocket, game_id: int):
+        await connection_manager.connect(game_id, websocket)
+        try:
+            while True:
+                msg = await websocket.receive_text()
+                if msg == "ping":
+                    await websocket.send_text("pong")
+        except WebSocketDisconnect:
+            await connection_manager.disconnect(game_id, websocket)
+        except Exception:
+            await connection_manager.disconnect(game_id, websocket)
 
     @app.get("/health")
     def health():

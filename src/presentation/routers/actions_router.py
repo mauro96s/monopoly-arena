@@ -79,6 +79,7 @@ from src.presentation.dependencies import (
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.models.enums import GameStatus
+from src.presentation.websocket_manager import broadcast_game_event_sync
 from src.domain.exceptions import (
     GameNotFoundError,
     PlayerNotFoundError,
@@ -157,7 +158,7 @@ def roll_dice(
     )
     try:
         res = use_case.execute(dto)
-        return RollDiceResponse(
+        response = RollDiceResponse(
             success=True,
             game_id=res.game_id,
             player_id=res.player_id,
@@ -189,6 +190,13 @@ def roll_dice(
             current_player_index=res.current_player_index,
             transaction_id=res.transaction_id,
         )
+        broadcast_game_event_sync(game_id, "DICE_ROLLED", {
+            "player_id": res.player_id,
+            "total_roll": res.total_roll,
+            "new_position": res.new_position,
+            "action_required": res.action_required,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -212,7 +220,7 @@ def buy_property(
     )
     try:
         result = use_case.execute(dto)
-        return BuyPropertyResponse(
+        response = BuyPropertyResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -229,6 +237,12 @@ def buy_property(
             winner_player_name=result.winner_player_name,
             quick_end_details=result.quick_end_details,
         )
+        broadcast_game_event_sync(game_id, "PROPERTY_BOUGHT", {
+            "player_id": result.player_id,
+            "tile_id": result.tile_id,
+            "price_paid": result.price_paid,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (PropertyAlreadyOwnedError, InsufficientFundsError, InvalidGameActionError) as e:
@@ -265,7 +279,7 @@ def auction_property(
     )
     try:
         result = use_case.execute(dto)
-        return AuctionPropertyResponse(
+        response = AuctionPropertyResponse(
             success=True,
             game_id=result.game_id,
             winner_player_id=result.winner_player_id,
@@ -282,6 +296,12 @@ def auction_property(
             winner_player_name_game=result.winner_player_name_game,
             quick_end_details=result.quick_end_details,
         )
+        broadcast_game_event_sync(game_id, "PROPERTY_AUCTIONED", {
+            "winner_player_id": result.winner_player_id,
+            "tile_id": result.tile_id,
+            "winning_bid": result.winning_bid,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (PropertyAlreadyOwnedError, InsufficientFundsError, InvalidGameActionError) as e:
@@ -306,7 +326,7 @@ def pay_rent(
     )
     try:
         result = use_case.execute(dto)
-        return PayRentResponse(
+        response = PayRentResponse(
             success=True,
             game_id=result.game_id,
             payer_id=result.payer_id,
@@ -325,6 +345,13 @@ def pay_rent(
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
         )
+        broadcast_game_event_sync(game_id, "RENT_PAID", {
+            "payer_id": result.payer_id,
+            "owner_id": result.owner_id,
+            "rent_amount": result.rent_amount,
+            "tile_id": result.tile_id,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -347,7 +374,7 @@ def build_house(
     )
     try:
         result = use_case.execute(dto)
-        return BuildHouseResponse(
+        response = BuildHouseResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -362,6 +389,13 @@ def build_house(
             available_hotels=result.available_hotels,
             transaction_id=result.transaction_id,
         )
+        broadcast_game_event_sync(game_id, "HOUSE_BUILT", {
+            "player_id": result.player_id,
+            "tile_id": result.tile_id,
+            "new_houses_count": result.new_houses_count,
+            "new_hotels_count": result.new_hotels_count,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -386,7 +420,7 @@ def sell_building(
     )
     try:
         result = use_case.execute(dto)
-        return SellBuildingResponse(
+        response = SellBuildingResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -402,6 +436,12 @@ def sell_building(
             transaction_id=result.transaction_id,
             message=result.message,
         )
+        broadcast_game_event_sync(game_id, "BUILDING_SOLD", {
+            "player_id": result.player_id,
+            "tile_id": result.tile_id,
+            "refund_amount": result.refund_amount,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -422,7 +462,7 @@ def declare_bankruptcy(
     )
     try:
         result = use_case.execute(dto)
-        return DeclareBankruptcyResponse(
+        response = DeclareBankruptcyResponse(
             success=True,
             game_id=result.game_id,
             bankrupt_player_id=result.bankrupt_player_id,
@@ -441,6 +481,12 @@ def declare_bankruptcy(
             transaction_id=result.transaction_id,
             message=result.message,
         )
+        broadcast_game_event_sync(game_id, "BANKRUPTCY_DECLARED", {
+            "bankrupt_player_id": result.bankrupt_player_id,
+            "creditor_player_id": result.creditor_player_id,
+            "is_game_finished": result.is_game_finished,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -464,7 +510,7 @@ def mortgage_property(
     )
     try:
         result = use_case.execute(dto)
-        return MortgageResponse(
+        response = MortgageResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -475,6 +521,12 @@ def mortgage_property(
             remaining_balance=result.remaining_balance,
             transaction_id=result.transaction_id,
         )
+        broadcast_game_event_sync(game_id, "PROPERTY_MORTGAGED", {
+            "player_id": result.player_id,
+            "tile_id": result.tile_id,
+            "is_mortgaged": result.is_mortgaged,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -513,7 +565,7 @@ def jail_action(
     )
     try:
         result = use_case.execute(dto)
-        return JailActionResponse(
+        response = JailActionResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -532,6 +584,12 @@ def jail_action(
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
         )
+        broadcast_game_event_sync(game_id, "JAIL_ACTION", {
+            "player_id": result.player_id,
+            "in_jail": result.in_jail,
+            "amount_paid": result.amount_paid,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -558,7 +616,7 @@ def bank_action(
     )
     try:
         result = use_case.execute(dto)
-        return BankActionResponse(
+        response = BankActionResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -574,6 +632,12 @@ def bank_action(
             winner_player_name=result.winner_player_name,
             quick_end_details=result.quick_end_details,
         )
+        broadcast_game_event_sync(game_id, "BANK_ACTION", {
+            "player_id": result.player_id,
+            "amount": result.amount,
+            "is_credit": result.is_credit,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:
@@ -595,7 +659,7 @@ def transfer_money(
     )
     try:
         result = use_case.execute(dto)
-        return TransferMoneyResponse(
+        response = TransferMoneyResponse(
             success=True,
             game_id=result.game_id,
             transaction_id=result.transaction_id,
@@ -606,6 +670,12 @@ def transfer_money(
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
         )
+        broadcast_game_event_sync(game_id, "MONEY_TRANSFERRED", {
+            "source_player_id": result.source_player_id,
+            "target_player_id": result.target_player_id,
+            "amount": result.amount,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except InsufficientFundsError as e:
@@ -620,7 +690,7 @@ def finish_game_action(
     """Finaliza la partida y calcula el podio oficial por patrimonio neto."""
     try:
         result = use_case.execute(game_id)
-        return FinishGameResponse(
+        response = FinishGameResponse(
             success=True,
             game_id=result.game_id,
             winner_name=result.winner_name,
@@ -642,6 +712,12 @@ def finish_game_action(
             ],
             transaction_id=result.transaction_id,
         )
+        broadcast_game_event_sync(game_id, "GAME_FINISHED", {
+            "winner_name": result.winner_name,
+            "winner_token": result.winner_token,
+            "winner_net_worth": result.winner_net_worth,
+        })
+        return response
     except (GameNotFoundError, InvalidGameActionError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -661,7 +737,7 @@ def draw_card_action(
     )
     try:
         result = use_case.execute(dto)
-        return DrawCardResponse(
+        response = DrawCardResponse(
             success=True,
             game_id=result.game_id,
             player_id=result.player_id,
@@ -683,6 +759,13 @@ def draw_card_action(
             landed_tile_details=result.landed_tile_details,
             message=result.message,
         )
+        broadcast_game_event_sync(game_id, "CARD_DRAWN", {
+            "player_id": result.player_id,
+            "deck_type": result.deck_type,
+            "card_id": result.card_id,
+            "effect_type": result.effect_type,
+        })
+        return response
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except (InsufficientFundsError, InvalidGameActionError) as e:

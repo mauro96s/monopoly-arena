@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = "monopoly_super_secret_key_change_in_prod"
 
     # Base de datos: por defecto SQLite local para desarrollo inmediato con cero fricción.
     # En producción o cuando se conecte Supabase, se define DATABASE_URL en el archivo .env

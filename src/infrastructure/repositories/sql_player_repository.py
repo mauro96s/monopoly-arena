@@ -1,4 +1,5 @@
 from typing import Optional, List
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.models.player import Player
@@ -8,6 +9,14 @@ from src.infrastructure.orm.models import PlayerModel
 class SqlPlayerRepository(PlayerRepositoryProtocol):
     def __init__(self, session: Session):
         self._session = session
+        self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        try:
+            self._session.execute(text("ALTER TABLE players ADD COLUMN user_id INTEGER DEFAULT NULL"))
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
 
     def _to_domain(self, model: PlayerModel) -> Player:
         return Player(
@@ -21,6 +30,7 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
             in_jail=model.in_jail,
             jail_turns=model.jail_turns,
             out_of_jail_cards=int(getattr(model, "out_of_jail_cards", 0)),
+            user_id=getattr(model, "user_id", None),
         )
 
     def get_by_id(self, player_id: int) -> Optional[Player]:
@@ -43,6 +53,7 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
                 in_jail=player.in_jail,
                 jail_turns=player.jail_turns,
                 out_of_jail_cards=player.out_of_jail_cards,
+                user_id=player.user_id,
             )
             self._session.add(model)
             self._session.commit()
@@ -60,5 +71,6 @@ class SqlPlayerRepository(PlayerRepositoryProtocol):
                 model.in_jail = player.in_jail
                 model.jail_turns = player.jail_turns
                 model.out_of_jail_cards = player.out_of_jail_cards
+                model.user_id = player.user_id
                 self._session.commit()
             return player
