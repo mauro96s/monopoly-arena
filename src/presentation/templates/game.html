@@ -158,6 +158,18 @@
       <span class="hidden sm:inline">Reglas</span>
     </button>
 
+    <!-- Botón de Taller de Temas -->
+    <button
+      id="btn-theme-workshop"
+      type="button"
+      onclick="openThemeWorkshopModal()"
+      class="text-xs font-heading font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-white dark:bg-slate-800 shadow-xs cursor-pointer"
+      title="Taller de Temas: Clonar, personalizar casillas y barajas de cartas"
+    >
+      <i data-lucide="palette" class="w-3.5 h-3.5 text-indigo-500"></i>
+      <span class="hidden sm:inline">Taller</span>
+    </button>
+
     <!-- Botón de Finalizar Partida -->
     <button
       id="btn-finish-game"
@@ -425,6 +437,198 @@
             class="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-xs cursor-pointer"
           >
             Guardar Preset
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE TALLER DE TEMAS Y BARAJAS (CLONACIÓN Y PERSONALIZACIÓN)          -->
+<!-- ========================================================================= -->
+<div id="theme-workshop-modal" onclick="if (event.target === this) closeThemeWorkshopModal();" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm hidden animate-fade-in">
+  <div class="relative w-full max-w-4xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden">
+    <!-- Header -->
+    <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/70 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl">
+          🎨
+        </div>
+        <div>
+          <h3 class="text-base font-heading font-extrabold text-slate-900 dark:text-white">
+            Taller de Temas y Barajas
+          </h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Explora temas oficiales (Clásico, Mundo Mágico), clónalos y personaliza casillas y cartas
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick="closeThemeWorkshopModal()"
+        class="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+        title="Cerrar modal"
+      >
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Body Scrollable -->
+    <div class="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+      
+      <!-- Vista 1: Catálogo de Temas Disponibles -->
+      <div id="workshop-catalog-view" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-heading font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+            Catálogo de Temas Disponibles
+          </span>
+          <span class="text-[11px] text-slate-400">
+            Los temas oficiales son de solo lectura; clónalos para editarlos libremente.
+          </span>
+        </div>
+
+        <div id="workshop-themes-list" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Inyectado dinámicamente -->
+          <div class="text-xs text-slate-400 text-center py-6 col-span-2">Cargando catálogo de temas...</div>
+        </div>
+      </div>
+
+      <!-- Vista 2: Editor de Tema Seleccionado (Oculto por defecto) -->
+      <div id="workshop-editor-view" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+          <div>
+            <h4 id="editor-theme-title" class="text-sm font-heading font-extrabold text-slate-900 dark:text-white">
+              Editando Tema
+            </h4>
+            <span id="editor-theme-badge" class="text-[10px] font-mono text-slate-500">ID: custom</span>
+          </div>
+          <button
+            type="button"
+            onclick="closeThemeEditor()"
+            class="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center gap-1 cursor-pointer"
+          >
+            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            <span>Volver al Catálogo</span>
+          </button>
+        </div>
+
+        <!-- Metadatos Básicos -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Nombre del Tema:</label>
+            <input
+              type="text"
+              id="edit-theme-name"
+              class="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Símbolo de Moneda:</label>
+            <input
+              type="text"
+              id="edit-theme-currency-sym"
+              class="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Código de Moneda:</label>
+            <input
+              type="text"
+              id="edit-theme-currency-code"
+              class="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 dark:text-slate-300 text-xs mb-1">Descripción:</label>
+          <input
+            type="text"
+            id="edit-theme-desc"
+            class="w-full px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
+          />
+        </div>
+
+        <!-- Pestañas del Editor -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700 gap-2 pt-2">
+          <button
+            type="button"
+            id="tab-btn-tiles"
+            onclick="switchEditorTab('tiles')"
+            class="px-3 py-1.5 font-heading font-bold text-xs border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 cursor-pointer"
+          >
+            Casillas (40)
+          </button>
+          <button
+            type="button"
+            id="tab-btn-chance"
+            onclick="switchEditorTab('chance')"
+            class="px-3 py-1.5 font-heading font-bold text-xs border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+          >
+            Cartas de Suerte
+          </button>
+          <button
+            type="button"
+            id="tab-btn-chest"
+            onclick="switchEditorTab('chest')"
+            class="px-3 py-1.5 font-heading font-bold text-xs border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+          >
+            Cartas Arca Comunal
+          </button>
+        </div>
+
+        <!-- Tab 1: Casillas -->
+        <div id="editor-tab-tiles" class="space-y-2 max-h-72 overflow-y-auto p-1">
+          <!-- Inyectado dinámicamente -->
+        </div>
+
+        <!-- Tab 2: Cartas de Suerte -->
+        <div id="editor-tab-chance" class="hidden space-y-2 max-h-72 overflow-y-auto p-1">
+          <div class="flex items-center justify-between pb-1">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Baraja de Fortuna</span>
+            <button
+              type="button"
+              onclick="addCustomCard('CHANCE')"
+              class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Añadir Carta
+            </button>
+          </div>
+          <div id="chance-cards-editor-list" class="space-y-2"></div>
+        </div>
+
+        <!-- Tab 3: Cartas de Arca Comunal -->
+        <div id="editor-tab-chest" class="hidden space-y-2 max-h-72 overflow-y-auto p-1">
+          <div class="flex items-center justify-between pb-1">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300">Baraja de Arca Comunal</span>
+            <button
+              type="button"
+              onclick="addCustomCard('COMMUNITY_CHEST')"
+              class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Añadir Carta
+            </button>
+          </div>
+          <div id="chest-cards-editor-list" class="space-y-2"></div>
+        </div>
+
+        <!-- Acciones del Editor -->
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            onclick="closeThemeEditor()"
+            class="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onclick="saveThemeChanges()"
+            class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-indigo-600/30 cursor-pointer"
+          >
+            Guardar Cambios
           </button>
         </div>
       </div>
@@ -5418,8 +5622,385 @@
   }
 
   // ========================================================
-  // PRESETS Y REGLAS DE PARTIDA (GESTIÓN MODAL)
+  // TALLER DE TEMAS Y BARAJAS (FRONTEND CONTROLLER)
   // ========================================================
+  let editingTheme = null;
+  let editingChanceCards = [];
+  let editingChestCards = [];
+  let editingTiles = {};
+
+  async function openThemeWorkshopModal() {
+    const modal = document.getElementById('theme-workshop-modal');
+    if (!modal) return;
+    closeThemeEditor();
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+    await loadWorkshopThemes();
+  }
+
+  function closeThemeWorkshopModal() {
+    const modal = document.getElementById('theme-workshop-modal');
+    if (modal) modal.classList.add('hidden');
+    closeThemeEditor();
+  }
+
+  function closeThemeEditor() {
+    const cat = document.getElementById('workshop-catalog-view');
+    const edt = document.getElementById('workshop-editor-view');
+    if (cat) cat.classList.remove('hidden');
+    if (edt) edt.classList.add('hidden');
+    editingTheme = null;
+  }
+
+  async function loadWorkshopThemes() {
+    const container = document.getElementById('workshop-themes-list');
+    if (!container) return;
+
+    try {
+      const res = await fetch('/api/v1/games/themes/available');
+      if (!res.ok) throw new Error('Error al cargar catálogo de temas');
+      const themes = await res.json();
+
+      if (!themes || themes.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-400 text-center py-6 col-span-2">No hay temas disponibles.</div>';
+        return;
+      }
+
+      container.innerHTML = themes.map(t => {
+        const isOfficial = t.is_official;
+        const isReadonly = t.is_readonly;
+        return `
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 flex flex-col justify-between gap-3">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-heading font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  ${t.name}
+                  <span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                    isOfficial ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  }">
+                    ${isOfficial ? 'Oficial' : 'Personalizado'}
+                  </span>
+                </span>
+                <span class="font-mono font-bold text-xs text-amber-600 dark:text-amber-400">
+                  ${t.currency_symbol} ${t.currency_code}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                ${t.description || 'Sin descripción'}
+              </p>
+              <div class="flex flex-wrap gap-2 text-[10px] font-mono text-slate-500 pt-1">
+                <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800">
+                  🃏 ${t.chance_deck_name || 'Fortuna'}: ${t.chance_cards_count ?? 16} cartas
+                </span>
+                <span class="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800">
+                  📦 ${t.community_chest_deck_name || 'Arca'}: ${t.community_chest_cards_count ?? 16} cartas
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onclick="cloneTheme('${t.theme_id}')"
+                class="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-heading font-bold text-xs flex items-center gap-1 cursor-pointer"
+                title="Clonar tema para personalizarlo"
+              >
+                <i data-lucide="copy" class="w-3 h-3"></i>
+                <span>Clonar</span>
+              </button>
+
+              ${!isReadonly ? `
+                <button
+                  type="button"
+                  onclick="editTheme('${t.theme_id}')"
+                  class="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-heading font-bold text-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <i data-lucide="edit-3" class="w-3 h-3"></i>
+                  <span>Editar</span>
+                </button>
+                <button
+                  type="button"
+                  onclick="deleteCustomTheme('${t.theme_id}')"
+                  class="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"
+                  title="Eliminar tema"
+                >
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+    } catch (e) {
+      container.innerHTML = `<div class="text-xs text-rose-500 text-center py-6 col-span-2">${e.message}</div>`;
+    }
+  }
+
+  async function cloneTheme(themeId) {
+    try {
+      const res = await fetch(`/api/v1/games/themes/${themeId}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      if (!res.ok) {
+        let err;
+        try { err = await res.json(); } catch (_) { err = { detail: res.statusText }; }
+        throw new Error(parseApiError(err));
+      }
+      const cloned = await res.json();
+      showToast(`¡Tema clonado exitosamente como "${cloned.name}"!`);
+      await editTheme(cloned.theme_id);
+    } catch (e) {
+      showToast(parseApiError(e), 'error');
+    }
+  }
+
+  async function editTheme(themeId) {
+    try {
+      const res = await fetch(`/api/v1/games/themes/${themeId}`);
+      if (!res.ok) throw new Error('No se pudo cargar la definición del tema');
+      const theme = await res.json();
+
+      editingTheme = theme;
+      editingChanceCards = JSON.parse(JSON.stringify(theme.chance_cards || []));
+      editingChestCards = JSON.parse(JSON.stringify(theme.community_chest_cards || []));
+      editingTiles = JSON.parse(JSON.stringify(theme.tiles || {}));
+
+      document.getElementById('edit-theme-name').value = theme.name || '';
+      document.getElementById('edit-theme-currency-sym').value = theme.currency_symbol || '$';
+      document.getElementById('edit-theme-currency-code').value = theme.currency_code || 'USD';
+      document.getElementById('edit-theme-desc').value = theme.description || '';
+      document.getElementById('editor-theme-title').textContent = `Editando: ${theme.name}`;
+      document.getElementById('editor-theme-badge').textContent = `ID: ${theme.theme_id} • ${theme.is_official ? 'Oficial' : 'Personalizado'}`;
+
+      renderEditorTiles();
+      renderEditorCards('CHANCE');
+      renderEditorCards('COMMUNITY_CHEST');
+      switchEditorTab('tiles');
+
+      document.getElementById('workshop-catalog-view').classList.add('hidden');
+      document.getElementById('workshop-editor-view').classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  function switchEditorTab(tab) {
+    const tabs = ['tiles', 'chance', 'chest'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`tab-btn-${t}`);
+      const panel = document.getElementById(`editor-tab-${t}`);
+      if (t === tab) {
+        if (btn) btn.className = 'px-3 py-1.5 font-heading font-bold text-xs border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 cursor-pointer';
+        if (panel) panel.classList.remove('hidden');
+      } else {
+        if (btn) btn.className = 'px-3 py-1.5 font-heading font-bold text-xs border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer';
+        if (panel) panel.classList.add('hidden');
+      }
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function renderEditorTiles() {
+    const panel = document.getElementById('editor-tab-tiles');
+    if (!panel) return;
+
+    const tileList = Object.values(editingTiles).sort((a, b) => a.position - b.position);
+    panel.innerHTML = `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        ${tileList.map(t => `
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+            <span class="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+              ${t.position}
+            </span>
+            <div class="flex-1 space-y-1">
+              <input
+                type="text"
+                value="${t.name || ''}"
+                onchange="editingTiles['${t.tile_id}'].name = this.value"
+                placeholder="Nombre completo"
+                class="w-full px-2 py-0.5 text-xs font-bold rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+              />
+              <div class="flex items-center gap-2">
+                <input
+                  type="text"
+                  value="${t.short_name || ''}"
+                  onchange="editingTiles['${t.tile_id}'].short_name = this.value"
+                  placeholder="Nombre corto"
+                  class="flex-1 px-2 py-0.5 text-[11px] font-mono rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                />
+                <input
+                  type="color"
+                  value="${t.banner_color || '#334155'}"
+                  onchange="editingTiles['${t.tile_id}'].banner_color = this.value"
+                  class="w-6 h-6 p-0 rounded border-0 cursor-pointer"
+                  title="Color de franja"
+                />
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderEditorCards(deckType) {
+    const isChance = deckType === 'CHANCE';
+    const listEl = document.getElementById(isChance ? 'chance-cards-editor-list' : 'chest-cards-editor-list');
+    if (!listEl) return;
+
+    const cards = isChance ? editingChanceCards : editingChestCards;
+    const effectOptions = [
+      'COLLECT_FROM_BANK',
+      'PAY_TO_BANK',
+      'COLLECT_FROM_ALL',
+      'PAY_TO_ALL',
+      'MOVE_TO_POSITION',
+      'MOVE_RELATIVE',
+      'MOVE_NEAREST_TYPE',
+      'GO_TO_JAIL',
+      'GET_OUT_OF_JAIL_CARD',
+      'REPAIRS_PER_BUILDING'
+    ];
+
+    listEl.innerHTML = cards.map((c, idx) => `
+      <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <input
+            type="text"
+            value="${c.title || ''}"
+            onchange="${isChance ? 'editingChanceCards' : 'editingChestCards'}[${idx}].title = this.value"
+            placeholder="Título de la carta"
+            class="flex-1 px-2.5 py-1 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+          />
+          <select
+            onchange="${isChance ? 'editingChanceCards' : 'editingChestCards'}[${idx}].effect_type = this.value"
+            class="text-[11px] font-mono px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+          >
+            ${effectOptions.map(opt => `<option value="${opt}" ${c.effect_type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+          </select>
+          <button
+            type="button"
+            onclick="deleteCustomCard('${deckType}', ${idx})"
+            class="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer shrink-0"
+            title="Eliminar carta"
+          >
+            <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <textarea
+          rows="2"
+          onchange="${isChance ? 'editingChanceCards' : 'editingChestCards'}[${idx}].description = this.value"
+          placeholder="Descripción del efecto para el jugador..."
+          class="w-full px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+        >${c.description || ''}</textarea>
+      </div>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function addCustomCard(deckType) {
+    const isChance = deckType === 'CHANCE';
+    const cardId = `custom_${deckType.toLowerCase()}_${Date.now()}`;
+    const newCard = {
+      card_id: cardId,
+      deck: deckType,
+      title: 'Nueva Carta Mágica',
+      description: 'El jugador cobra 100 de la Banca.',
+      effect_type: 'COLLECT_FROM_BANK',
+      params: { amount: 100 },
+      icon: 'sparkles'
+    };
+
+    if (isChance) {
+      editingChanceCards.push(newCard);
+      renderEditorCards('CHANCE');
+    } else {
+      editingChestCards.push(newCard);
+      renderEditorCards('COMMUNITY_CHEST');
+    }
+  }
+
+  function deleteCustomCard(deckType, idx) {
+    if (deckType === 'CHANCE') {
+      editingChanceCards.splice(idx, 1);
+      renderEditorCards('CHANCE');
+    } else {
+      editingChestCards.splice(idx, 1);
+      renderEditorCards('COMMUNITY_CHEST');
+    }
+  }
+
+  async function saveThemeChanges() {
+    if (!editingTheme) return;
+
+    const name = document.getElementById('edit-theme-name').value.trim();
+    if (!name) {
+      showToast('Ingresa un nombre válido para el tema', 'error');
+      return;
+    }
+
+    const payload = {
+      theme_id: editingTheme.theme_id,
+      name: name,
+      currency_symbol: document.getElementById('edit-theme-currency-sym').value.trim() || '$',
+      currency_code: document.getElementById('edit-theme-currency-code').value.trim() || 'USD',
+      description: document.getElementById('edit-theme-desc').value.trim(),
+      chance_deck_name: editingTheme.chance_deck_name || 'Fortuna',
+      community_chest_deck_name: editingTheme.community_chest_deck_name || 'Arca Comunal',
+      groups: editingTheme.groups || [],
+      tiles: editingTiles,
+      chance_cards: editingChanceCards,
+      community_chest_cards: editingChestCards,
+    };
+
+    try {
+      const res = await fetch(`/api/v1/games/themes/${editingTheme.theme_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        let err;
+        try { err = await res.json(); } catch (_) { err = { detail: res.statusText }; }
+        throw new Error(parseApiError(err));
+      }
+
+      showToast(`¡Tema "${name}" guardado exitosamente!`);
+      closeThemeEditor();
+      await loadWorkshopThemes();
+      if (gameState && gameState.theme_id === editingTheme.theme_id) {
+        await syncActiveTheme();
+        await refreshGameData();
+      }
+    } catch (e) {
+      showToast(parseApiError(e), 'error');
+    }
+  }
+
+  async function deleteCustomTheme(themeId) {
+    if (!confirm('¿Deseas eliminar este tema personalizado?')) return;
+    try {
+      const res = await fetch(`/api/v1/games/themes/${themeId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        let err;
+        try { err = await res.json(); } catch (_) { err = { detail: res.statusText }; }
+        throw new Error(parseApiError(err));
+      }
+      showToast('Tema eliminado correctamente');
+      await loadWorkshopThemes();
+    } catch (e) {
+      showToast(parseApiError(e), 'error');
+    }
+  }
   async function openRulesAndPresetsModal() {
     const modal = document.getElementById('rules-presets-modal');
     if (!modal) return;

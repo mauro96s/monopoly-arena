@@ -12,6 +12,7 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.interfaces.rule_preset_repository import RulePresetRepositoryProtocol
+import uuid
 from src.domain.models.rule_preset import RulePreset
 from src.presentation.dependencies import (
     get_game_repository,
@@ -20,7 +21,9 @@ from src.presentation.dependencies import (
     get_transaction_repository,
     get_finish_game_use_case,
     get_rule_preset_repository,
+    get_theme_repository,
 )
+from src.domain.interfaces.theme_repository import ThemeRepositoryProtocol
 from src.application.use_cases.finish_game import FinishGameUseCase
 from src.presentation.schemas.action_schemas import FinishGameResponse, PlayerRankingSchema
 from src.domain.models.game import Game
@@ -29,7 +32,9 @@ from src.domain.models.transaction import Transaction
 from src.domain.models.enums import GameStatus, GameVariant, TransactionType
 from src.domain.rules.rule_registry import BoardRuleRegistry
 from src.domain.rules.ruleset_config import RulesetConfig
-from src.domain.themes import ThemeRegistry, ThemeDefinition
+from src.domain.themes import ThemeRegistry, ThemeDefinition, GroupThemeMetadata, TileThemeMetadata
+from src.domain.themes.card_models import ThemeCardDefinition, DeckType, CardEffectType
+from src.domain.exceptions import InvalidGameActionError
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
@@ -100,6 +105,16 @@ class BoardTileResponse(BaseModel):
     icon: Optional[str] = None
 
 
+class CardThemeSchema(BaseModel):
+    card_id: str
+    deck: str
+    title: str
+    description: str
+    effect_type: str
+    params: dict = {}
+    icon: Optional[str] = None
+
+
 class GroupThemeSchema(BaseModel):
     key: str
     name: str
@@ -123,8 +138,35 @@ class ThemeResponse(BaseModel):
     description: str
     currency_symbol: str
     currency_code: str
-    groups: List[GroupThemeSchema]
-    tiles: dict[str, TileThemeSchema]
+    chance_deck_name: str = "Fortuna"
+    community_chest_deck_name: str = "Arca Comunal"
+    is_official: bool = False
+    is_readonly: bool = False
+    parent_theme_id: Optional[str] = None
+    groups: List[GroupThemeSchema] = []
+    tiles: dict[str, TileThemeSchema] = {}
+    chance_cards: List[CardThemeSchema] = []
+    community_chest_cards: List[CardThemeSchema] = []
+
+
+class CloneThemeRequest(BaseModel):
+    target_theme_id: Optional[str] = None
+    target_name: Optional[str] = None
+    target_description: Optional[str] = None
+
+
+class SaveThemeRequest(BaseModel):
+    theme_id: Optional[str] = None
+    name: str
+    description: Optional[str] = ""
+    currency_symbol: Optional[str] = "$"
+    currency_code: Optional[str] = "USD"
+    chance_deck_name: Optional[str] = "Fortuna"
+    community_chest_deck_name: Optional[str] = "Arca Comunal"
+    groups: List[GroupThemeSchema] = []
+    tiles: dict[str, TileThemeSchema] = {}
+    chance_cards: List[CardThemeSchema] = []
+    community_chest_cards: List[CardThemeSchema] = []
 
 
 class RentPreviewResponse(BaseModel):
@@ -503,23 +545,19 @@ def calculate_rent_preview(
     )
 
 
-@router.get("/{game_id}/theme", response_model=ThemeResponse)
-def get_game_theme(
-    game_id: int,
-    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
-):
-    """Retorna la configuración completa del tema visual activo de la partida."""
-    game = game_repo.get_by_id(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Partida no encontrada.")
-
-    theme = ThemeRegistry.get_theme(getattr(game, "theme_id", "classic") or "classic")
+def _build_theme_response(theme: ThemeDefinition) -> ThemeResponse:
+    """Función de mapeo pura para convertir ThemeDefinition en ThemeResponse."""
     return ThemeResponse(
         theme_id=theme.theme_id,
         name=theme.name,
         description=theme.description,
         currency_symbol=theme.currency_symbol,
         currency_code=theme.currency_code,
+        chance_deck_name=theme.chance_deck_name,
+        community_chest_deck_name=theme.community_chest_deck_name,
+        is_official=theme.is_official,
+        is_readonly=theme.is_readonly,
+        parent_theme_id=theme.parent_theme_id,
         groups=[
             GroupThemeSchema(
                 key=g.key,
@@ -541,12 +579,54 @@ def get_game_theme(
             )
             for tid, t in theme.tiles.items()
         },
+        chance_cards=[
+            CardThemeSchema(
+                card_id=c.card_id,
+                deck=c.deck.value if hasattr(c.deck, "value") else str(c.deck),
+                title=c.title,
+                description=c.description,
+                effect_type=c.effect_type.value if hasattr(c.effect_type, "value") else str(c.effect_type),
+                params=c.params,
+                icon=c.icon,
+            )
+            for c in theme.chance_cards
+        ],
+        community_chest_cards=[
+            CardThemeSchema(
+                card_id=c.card_id,
+                deck=c.deck.value if hasattr(c.deck, "value") else str(c.deck),
+                title=c.title,
+                description=c.description,
+                effect_type=c.effect_type.value if hasattr(c.effect_type, "value") else str(c.effect_type),
+                params=c.params,
+                icon=c.icon,
+            )
+            for c in theme.community_chest_cards
+        ],
     )
 
 
+@router.get("/{game_id}/theme", response_model=ThemeResponse)
+def get_game_theme(
+    game_id: int,
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Retorna la configuración completa del tema visual activo de la partida."""
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+    theme_id = getattr(game, "theme_id", "classic") or "classic"
+    theme = theme_repo.get_by_theme_id(theme_id) or ThemeRegistry.get_theme(theme_id)
+    return _build_theme_response(theme)
+
+
 @router.get("/themes/available")
-def list_available_themes():
-    """Lista todos los temas registrados disponibles para nuevas partidas."""
+def list_available_themes(
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Lista todos los temas registrados disponibles (oficiales y personalizados)."""
     return [
         {
             "theme_id": t.theme_id,
@@ -554,9 +634,195 @@ def list_available_themes():
             "description": t.description,
             "currency_symbol": t.currency_symbol,
             "currency_code": t.currency_code,
+            "chance_deck_name": t.chance_deck_name,
+            "community_chest_deck_name": t.community_chest_deck_name,
+            "is_official": t.is_official,
+            "is_readonly": t.is_readonly,
+            "parent_theme_id": t.parent_theme_id,
+            "chance_cards_count": len(t.chance_cards),
+            "community_chest_cards_count": len(t.community_chest_cards),
         }
         for t in ThemeRegistry.list_themes()
     ]
+
+
+@router.get("/themes/{theme_id}", response_model=ThemeResponse)
+def get_theme_by_id(
+    theme_id: str,
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Retorna la definición completa de un tema por su identificador."""
+    theme = theme_repo.get_by_theme_id(theme_id) or ThemeRegistry.get_theme(theme_id)
+    if not theme:
+        raise HTTPException(status_code=404, detail=f"Tema '{theme_id}' no encontrado.")
+    return _build_theme_response(theme)
+
+
+@router.post("/themes/{theme_id}/clone", response_model=ThemeResponse, status_code=status.HTTP_201_CREATED)
+def clone_theme(
+    theme_id: str,
+    payload: Optional[CloneThemeRequest] = None,
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Clona un tema existente (oficial o personalizado) a un nuevo tema editable."""
+    base_theme = theme_repo.get_by_theme_id(theme_id) or ThemeRegistry.get_theme(theme_id)
+    if not base_theme:
+        raise HTTPException(status_code=404, detail=f"Tema base '{theme_id}' no encontrado.")
+
+    target_id = payload.target_theme_id.strip() if (payload and payload.target_theme_id) else f"{theme_id}_copy_{uuid.uuid4().hex[:6]}"
+    target_name = payload.target_name.strip() if (payload and payload.target_name) else f"{base_theme.name} (Copia)"
+    target_desc = payload.target_description.strip() if (payload and payload.target_description) else f"Copia personalizada de {base_theme.name}"
+
+    cloned_groups = [
+        GroupThemeMetadata(key=g.key, name=g.name, color_hex=g.color_hex, text_color=g.text_color, icon=g.icon)
+        for g in base_theme.groups
+    ]
+    cloned_tiles = {
+        tid: TileThemeMetadata(tile_id=t.tile_id, position=t.position, name=t.name, short_name=t.short_name, icon=t.icon, banner_color=t.banner_color)
+        for tid, t in base_theme.tiles.items()
+    }
+    cloned_chance = [
+        ThemeCardDefinition(card_id=f"{target_id}_{c.card_id}", deck=c.deck, title=c.title, description=c.description, effect_type=c.effect_type, params=dict(c.params), icon=c.icon)
+        for c in base_theme.chance_cards
+    ]
+    cloned_chest = [
+        ThemeCardDefinition(card_id=f"{target_id}_{c.card_id}", deck=c.deck, title=c.title, description=c.description, effect_type=c.effect_type, params=dict(c.params), icon=c.icon)
+        for c in base_theme.community_chest_cards
+    ]
+
+    new_theme = ThemeDefinition(
+        theme_id=target_id,
+        name=target_name,
+        description=target_desc,
+        currency_symbol=base_theme.currency_symbol,
+        currency_code=base_theme.currency_code,
+        chance_deck_name=base_theme.chance_deck_name,
+        community_chest_deck_name=base_theme.community_chest_deck_name,
+        is_official=False,
+        is_readonly=False,
+        parent_theme_id=base_theme.theme_id,
+        groups=cloned_groups,
+        tiles=cloned_tiles,
+        chance_cards=cloned_chance,
+        community_chest_cards=cloned_chest,
+    )
+
+    saved = theme_repo.save(new_theme)
+    return _build_theme_response(saved)
+
+
+@router.post("/themes", response_model=ThemeResponse, status_code=status.HTTP_201_CREATED)
+def create_custom_theme(
+    payload: SaveThemeRequest,
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Crea y persiste un nuevo tema personalizado."""
+    target_id = payload.theme_id.strip() if payload.theme_id else f"custom_{uuid.uuid4().hex[:6]}"
+    if ThemeRegistry.has_theme(target_id):
+        raise HTTPException(status_code=400, detail=f"El tema '{target_id}' ya existe.")
+
+    groups = [
+        GroupThemeMetadata(key=g.key, name=g.name, color_hex=g.color_hex, text_color=g.text_color, icon=g.icon)
+        for g in payload.groups
+    ]
+    tiles = {
+        tid: TileThemeMetadata(tile_id=t.tile_id, position=t.position, name=t.name, short_name=t.short_name, icon=t.icon, banner_color=t.banner_color)
+        for tid, t in payload.tiles.items()
+    }
+    chance_cards = [
+        ThemeCardDefinition(card_id=c.card_id, deck=DeckType.CHANCE, title=c.title, description=c.description, effect_type=CardEffectType(c.effect_type), params=c.params, icon=c.icon)
+        for c in payload.chance_cards
+    ]
+    community_chest_cards = [
+        ThemeCardDefinition(card_id=c.card_id, deck=DeckType.COMMUNITY_CHEST, title=c.title, description=c.description, effect_type=CardEffectType(c.effect_type), params=c.params, icon=c.icon)
+        for c in payload.community_chest_cards
+    ]
+
+    theme = ThemeDefinition(
+        theme_id=target_id,
+        name=payload.name.strip(),
+        description=payload.description or "",
+        currency_symbol=payload.currency_symbol or "$",
+        currency_code=payload.currency_code or "USD",
+        chance_deck_name=payload.chance_deck_name or "Fortuna",
+        community_chest_deck_name=payload.community_chest_deck_name or "Arca Comunal",
+        is_official=False,
+        is_readonly=False,
+        groups=groups,
+        tiles=tiles,
+        chance_cards=chance_cards,
+        community_chest_cards=community_chest_cards,
+    )
+
+    saved = theme_repo.save(theme)
+    return _build_theme_response(saved)
+
+
+@router.put("/themes/{theme_id}", response_model=ThemeResponse)
+def update_custom_theme(
+    theme_id: str,
+    payload: SaveThemeRequest,
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Actualiza un tema personalizado existente."""
+    existing = theme_repo.get_by_theme_id(theme_id) or ThemeRegistry.get_theme(theme_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Tema '{theme_id}' no encontrado.")
+    if existing.is_readonly or existing.is_official:
+        raise HTTPException(status_code=400, detail=f"El tema '{theme_id}' es protegido y no puede modificarse.")
+
+    groups = [
+        GroupThemeMetadata(key=g.key, name=g.name, color_hex=g.color_hex, text_color=g.text_color, icon=g.icon)
+        for g in payload.groups
+    ]
+    tiles = {
+        tid: TileThemeMetadata(tile_id=t.tile_id, position=t.position, name=t.name, short_name=t.short_name, icon=t.icon, banner_color=t.banner_color)
+        for tid, t in payload.tiles.items()
+    }
+    chance_cards = [
+        ThemeCardDefinition(card_id=c.card_id, deck=DeckType.CHANCE, title=c.title, description=c.description, effect_type=CardEffectType(c.effect_type), params=c.params, icon=c.icon)
+        for c in payload.chance_cards
+    ]
+    community_chest_cards = [
+        ThemeCardDefinition(card_id=c.card_id, deck=DeckType.COMMUNITY_CHEST, title=c.title, description=c.description, effect_type=CardEffectType(c.effect_type), params=c.params, icon=c.icon)
+        for c in payload.community_chest_cards
+    ]
+
+    updated = ThemeDefinition(
+        theme_id=theme_id,
+        name=payload.name.strip(),
+        description=payload.description or "",
+        currency_symbol=payload.currency_symbol or "$",
+        currency_code=payload.currency_code or "USD",
+        chance_deck_name=payload.chance_deck_name or "Fortuna",
+        community_chest_deck_name=payload.community_chest_deck_name or "Arca Comunal",
+        is_official=False,
+        is_readonly=False,
+        parent_theme_id=existing.parent_theme_id,
+        owner_user_id=existing.owner_user_id,
+        groups=groups,
+        tiles=tiles,
+        chance_cards=chance_cards,
+        community_chest_cards=community_chest_cards,
+    )
+
+    saved = theme_repo.save(updated)
+    return _build_theme_response(saved)
+
+
+@router.delete("/themes/{theme_id}", status_code=status.HTTP_200_OK)
+def delete_custom_theme(
+    theme_id: str,
+    theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
+):
+    """Elimina un tema personalizado."""
+    try:
+        success = theme_repo.delete(theme_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Tema '{theme_id}' no encontrado.")
+        return {"success": True, "message": f"Tema '{theme_id}' eliminado correctamente."}
+    except InvalidGameActionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{game_id}/players", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)

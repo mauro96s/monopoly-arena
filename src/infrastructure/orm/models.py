@@ -100,3 +100,26 @@ class RulePresetModel(Base):
     ruleset_config = Column(String(1024), default="{}", nullable=False)
     is_system_default = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
+
+
+class ThemeModel(Base):
+    __tablename__ = "themes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    theme_id = Column(String(64), unique=True, index=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), default="", nullable=False)
+    currency_symbol = Column(String(16), default="$", nullable=False)
+    currency_code = Column(String(16), default="USD", nullable=False)
+    chance_deck_name = Column(String(64), default="Fortuna", nullable=False)
+    community_chest_deck_name = Column(String(64), default="Arca Comunal", nullable=False)
+    is_official = Column(Boolean, default=False, nullable=False)
+    is_readonly = Column(Boolean, default=False, nullable=False)
+    parent_theme_id = Column(String(64), nullable=True)
+    owner_user_id = Column(String(64), nullable=True)
+    groups_json = Column(String, default="[]", nullable=False)
+    tiles_json = Column(String, default="{}", nullable=False)
+    chance_cards_json = Column(String, default="[]", nullable=False)
+    community_chest_cards_json = Column(String, default="[]", nullable=False)
+    created_at = Column(DateTime, default=get_utc_now, nullable=False)
+    updated_at = Column(DateTime, default=get_utc_now, nullable=False)
