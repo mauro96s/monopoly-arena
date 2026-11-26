@@ -89,3 +89,14 @@ class TransactionModel(Base):
 
     # Relaciones
     game = relationship("GameModel", back_populates="transactions")
+
+
+class RulePresetModel(Base):
+    __tablename__ = "rule_presets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, index=True, nullable=False)
+    description = Column(String(255), default="", nullable=False)
+    ruleset_config = Column(String(1024), default="{}", nullable=False)
+    is_system_default = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=get_utc_now, nullable=False)

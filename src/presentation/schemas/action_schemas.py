@@ -20,6 +20,10 @@ class BuyPropertyResponse(BaseModel):
     transaction_id: int
     current_turn: int
     current_player_index: int
+    is_game_finished: bool = False
+    winner_player_id: Optional[int] = None
+    winner_player_name: Optional[str] = None
+    quick_end_details: Optional[dict] = None
 
 
 class PayRentRequest(BaseModel):
@@ -206,6 +210,22 @@ class CreateGameRequest(BaseModel):
     variant: Optional[str] = "CLASSIC"
     theme_id: Optional[str] = Field("classic", description="ID del tema visual (ej: 'classic', 'pokemon', 'harry_potter')")
     ruleset_config: Optional[dict] = Field(None, description="Configuración de variantes de reglas (ej: free_parking_jackpot, double_salary_on_exact_go)")
+    rule_preset_id: Optional[int] = Field(None, description="ID de un preset guardado de reglas a aplicar a la partida")
+
+
+class CreateRulePresetRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, description="Nombre del preset de reglas")
+    description: Optional[str] = Field("", description="Descripción detallada del preset")
+    ruleset_config: dict = Field(..., description="Diccionario con la configuración de reglas")
+
+
+class RulePresetResponse(BaseModel):
+    id: int
+    name: str
+    description: str
+    ruleset_config: dict
+    is_system_default: bool
+    created_at: Optional[str] = None
 
 
 class DeclareBankruptcyRequest(BaseModel):
@@ -304,6 +324,10 @@ class AuctionPropertyResponse(BaseModel):
     transaction_id: int
     current_turn: int
     current_player_index: int
+    is_game_finished: bool = False
+    winner_player_id_game: Optional[int] = None
+    winner_player_name_game: Optional[str] = None
+    quick_end_details: Optional[dict] = None
 
 
 class DrawCardRequest(BaseModel):

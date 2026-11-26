@@ -5,6 +5,8 @@ from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
+from src.domain.interfaces.rule_preset_repository import RulePresetRepositoryProtocol
+from src.infrastructure.repositories.sql_rule_preset_repository import SqlRulePresetRepository
 from src.infrastructure.repositories.sql_game_repository import SqlGameRepository
 from src.infrastructure.repositories.sql_player_repository import SqlPlayerRepository
 from src.infrastructure.repositories.sql_property_repository import SqlPropertyRepository
@@ -223,3 +225,7 @@ def get_roll_dice_use_case(
 
 
 get_move_player_by_dice_use_case = get_roll_dice_use_case
+
+
+def get_rule_preset_repository(db: Session = Depends(get_db)) -> RulePresetRepositoryProtocol:
+    return SqlRulePresetRepository(db)

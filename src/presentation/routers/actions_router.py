@@ -224,6 +224,10 @@ def buy_property(
             transaction_id=result.transaction_id,
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
+            is_game_finished=result.is_game_finished,
+            winner_player_id=result.winner_player_id,
+            winner_player_name=result.winner_player_name,
+            quick_end_details=result.quick_end_details,
         )
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -273,6 +277,10 @@ def auction_property(
             transaction_id=result.transaction_id,
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
+            is_game_finished=result.is_game_finished,
+            winner_player_id_game=result.winner_player_id_game,
+            winner_player_name_game=result.winner_player_name_game,
+            quick_end_details=result.quick_end_details,
         )
     except (GameNotFoundError, PlayerNotFoundError, PropertyNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -561,6 +569,10 @@ def bank_action(
             transaction_id=result.transaction_id,
             current_turn=result.current_turn,
             current_player_index=result.current_player_index,
+            is_game_finished=result.is_game_finished,
+            winner_player_id=result.winner_player_id,
+            winner_player_name=result.winner_player_name,
+            quick_end_details=result.quick_end_details,
         )
     except (GameNotFoundError, PlayerNotFoundError) as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

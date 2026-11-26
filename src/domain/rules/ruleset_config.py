@@ -15,6 +15,9 @@ class RulesetConfig:
     double_salary_on_exact_go: bool = False  # Paga $400 si cae exactamente en la casilla 0 (Salida)
     collect_rent_in_jail: bool = True        # Permite cobrar rentas a rivales mientras el dueño está preso
     go_salary: int = 200                     # Salario oficial al pasar por la Salida
+    victory_mode: str = "LAST_MAN_STANDING"  # "LAST_MAN_STANDING" o "ALL_PROPERTIES_SOLD"
+    disqualify_jailed_on_quick_end: bool = True  # Descalifica jugadores en prisión si se activa el fin rápido
+    property_valuation_mode: str = "PURCHASE_PRICE"  # "PURCHASE_PRICE" o "MORTGAGE_VALUE"
     enabled_expansions: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -32,5 +35,8 @@ class RulesetConfig:
             double_salary_on_exact_go=bool(data.get("double_salary_on_exact_go", False)),
             collect_rent_in_jail=bool(data.get("collect_rent_in_jail", True)),
             go_salary=int(data.get("go_salary", 200)),
+            victory_mode=str(data.get("victory_mode", "LAST_MAN_STANDING")),
+            disqualify_jailed_on_quick_end=bool(data.get("disqualify_jailed_on_quick_end", True)),
+            property_valuation_mode=str(data.get("property_valuation_mode", "PURCHASE_PRICE")),
             enabled_expansions=list(data.get("enabled_expansions", [])),
         )

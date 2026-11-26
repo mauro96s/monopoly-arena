@@ -4,6 +4,7 @@ from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
 from src.domain.rules.rule_registry import BoardRuleRegistry
+from src.domain.rules.quick_end_evaluator import QuickEndEvaluator
 from src.domain.models.property import PropertyState
 from src.domain.models.transaction import Transaction
 from src.domain.models.enums import TransactionType
@@ -108,13 +109,22 @@ class BuyPropertyUseCase:
             )
         )
 
-        # 9. Avance automático de turno circular (J1 -> J2 -> J3 -> J1)
+        # 9. Evaluar condición de fin rápido (ALL_PROPERTIES_SOLD)
+        quick_end = QuickEndEvaluator.evaluate_after_property_acquired(
+            game=game,
+            property_repo=self._property_repo,
+            player_repo=self._player_repo,
+            game_repo=self._game_repo,
+            transaction_repo=self._transaction_repo,
+        )
+
+        # 10. Avance automático de turno circular (J1 -> J2 -> J3 -> J1) si no finalizó
         all_players = self._player_repo.list_by_game(game.id)
-        if dto.auto_advance_turn and all_players:
+        if not quick_end.triggered and dto.auto_advance_turn and all_players:
             game.advance_turn(len(all_players))
             self._game_repo.save(game)
 
-        # 10. Retornar DTO de resultado agnóstico
+        # 11. Retornar DTO de resultado agnóstico
         return BuyPropertyOutputDTO(
             game_id=game.id,
             player_id=player.id,
@@ -126,4 +136,17 @@ class BuyPropertyUseCase:
             transaction_id=tx.id if tx.id else 0,
             current_turn=game.current_turn,
             current_player_index=game.current_player_index,
+            is_game_finished=quick_end.triggered,
+            winner_player_id=quick_end.winner_id,
+            winner_player_name=quick_end.winner_name,
+            quick_end_details={
+                "triggered": quick_end.triggered,
+                "victory_mode": game.get_ruleset().victory_mode,
+                "winner_id": quick_end.winner_id,
+                "winner_name": quick_end.winner_name,
+                "winner_net_worth": quick_end.winner_net_worth,
+                "rankings": quick_end.rankings,
+                "disqualified_player_ids": quick_end.disqualified_player_ids,
+                "reason": quick_end.reason,
+            } if quick_end.triggered else None,
         )

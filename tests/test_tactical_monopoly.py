@@ -213,16 +213,16 @@ class TestTacticalMonopolyFeatures(unittest.TestCase):
         self.assertIsNone(self.game_repo.get_by_id(g2.id))
 
     def test_roll_dice_movement_and_pass_go(self):
-        # Ana tira 3 + 4 = 7 desde posición 0
+        # Ana tira 2 + 4 = 6 desde posición 0 (Avenida Oriental)
         self.p1.position = 0
         self.player_repo.save(self.p1)
 
         roll_res = self.roll_uc.execute(RollDiceInputDTO(
-            game_id=self.game.id, player_id=self.p1.id, dice_1=3, dice_2=4
+            game_id=self.game.id, player_id=self.p1.id, dice_1=2, dice_2=4
         ))
         self.assertEqual(roll_res.old_position, 0)
-        self.assertEqual(roll_res.new_position, 7)
-        self.assertEqual(roll_res.total_roll, 7)
+        self.assertEqual(roll_res.new_position, 6)
+        self.assertEqual(roll_res.total_roll, 6)
         self.assertFalse(roll_res.passed_go)
 
         # Simular avance de turno para permitir nueva tirada

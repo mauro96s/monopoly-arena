@@ -1,17 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from pydantic import BaseModel
-from src.presentation.schemas.action_schemas import CreateGameRequest, AddPlayerRequest
+from src.presentation.schemas.action_schemas import (
+    CreateGameRequest,
+    AddPlayerRequest,
+    CreateRulePresetRequest,
+    RulePresetResponse,
+)
 from src.domain.interfaces.game_repository import GameRepositoryProtocol
 from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
 from src.domain.interfaces.property_repository import PropertyRepositoryProtocol
 from src.domain.interfaces.transaction_repository import TransactionRepositoryProtocol
+from src.domain.interfaces.rule_preset_repository import RulePresetRepositoryProtocol
+from src.domain.models.rule_preset import RulePreset
 from src.presentation.dependencies import (
     get_game_repository,
     get_player_repository,
     get_property_repository,
     get_transaction_repository,
     get_finish_game_use_case,
+    get_rule_preset_repository,
 )
 from src.application.use_cases.finish_game import FinishGameUseCase
 from src.presentation.schemas.action_schemas import FinishGameResponse, PlayerRankingSchema
@@ -152,10 +160,78 @@ def list_games(
     ]
 
 
+# ========================================================
+# PRESETS DE REGLAS
+# ========================================================
+@router.get("/rule-presets", response_model=List[RulePresetResponse], status_code=status.HTTP_200_OK)
+def list_rule_presets(
+    preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
+):
+    """Lista todos los perfiles o presets de reglas disponibles (sistema y personalizados)."""
+    presets = preset_repo.list_all()
+    return [
+        RulePresetResponse(
+            id=p.id,  # type: ignore
+            name=p.name,
+            description=p.description,
+            ruleset_config=p.ruleset_config.to_dict(),
+            is_system_default=p.is_system_default,
+            created_at=p.created_at.isoformat() if p.created_at else None,
+        )
+        for p in presets
+    ]
+
+
+@router.post("/rule-presets", response_model=RulePresetResponse, status_code=status.HTTP_201_CREATED)
+def create_rule_preset(
+    payload: CreateRulePresetRequest,
+    preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
+):
+    """Crea y guarda un nuevo preset de reglas personalizado."""
+    existing = preset_repo.get_by_name(payload.name.strip())
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Ya existe un preset con el nombre '{payload.name}'.")
+
+    cfg = RulesetConfig.from_dict(payload.ruleset_config)
+    new_preset = RulePreset(
+        id=None,
+        name=payload.name.strip(),
+        description=payload.description or "",
+        ruleset_config=cfg,
+        is_system_default=False,
+    )
+    saved = preset_repo.save(new_preset)
+    return RulePresetResponse(
+        id=saved.id,  # type: ignore
+        name=saved.name,
+        description=saved.description,
+        ruleset_config=saved.ruleset_config.to_dict(),
+        is_system_default=saved.is_system_default,
+        created_at=saved.created_at.isoformat() if saved.created_at else None,
+    )
+
+
+@router.delete("/rule-presets/{preset_id}", status_code=status.HTTP_200_OK)
+def delete_rule_preset(
+    preset_id: int,
+    preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
+):
+    """Elimina un preset personalizado. No permite eliminar presets predeterminados del sistema."""
+    preset = preset_repo.get_by_id(preset_id)
+    if not preset:
+        raise HTTPException(status_code=404, detail="Preset no encontrado.")
+    if preset.is_system_default:
+        raise HTTPException(status_code=400, detail="No se pueden eliminar los presets predeterminados del sistema.")
+
+    preset_repo.delete(preset_id)
+    return {"success": True, "message": f"Preset '{preset.name}' eliminado con éxito."}
+
+
 @router.post("", response_model=GameResponse, status_code=status.HTTP_201_CREATED)
 def create_game(
     payload: CreateGameRequest,
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
 ):
     existing = game_repo.get_by_code(payload.code)
     if existing:
@@ -163,7 +239,18 @@ def create_game(
 
     variant = GameVariant(payload.variant.upper()) if payload.variant else GameVariant.CLASSIC
     theme_id = payload.theme_id or "classic"
-    ruleset = RulesetConfig.from_dict(payload.ruleset_config) if getattr(payload, "ruleset_config", None) else RulesetConfig()
+
+    # Resolver ruleset: preset_id tiene prioridad o fallback a ruleset_config directo
+    if getattr(payload, "rule_preset_id", None):
+        preset = preset_repo.get_by_id(payload.rule_preset_id)
+        if not preset:
+            raise HTTPException(status_code=404, detail=f"Preset {payload.rule_preset_id} no encontrado.")
+        ruleset = preset.ruleset_config
+    elif getattr(payload, "ruleset_config", None):
+        ruleset = RulesetConfig.from_dict(payload.ruleset_config)
+    else:
+        ruleset = RulesetConfig()
+
     new_game = Game(
         id=None,
         code=payload.code,

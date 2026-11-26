@@ -22,6 +22,10 @@ class BuyPropertyOutputDTO:
     transaction_id: int
     current_turn: int
     current_player_index: int
+    is_game_finished: bool = False
+    winner_player_id: Optional[int] = None
+    winner_player_name: Optional[str] = None
+    quick_end_details: Optional[dict] = None
 
 
 @dataclass(frozen=True)
@@ -257,6 +261,10 @@ class AuctionPropertyOutputDTO:
     transaction_id: int
     current_turn: int
     current_player_index: int
+    is_game_finished: bool = False
+    winner_player_id_game: Optional[int] = None
+    winner_player_name_game: Optional[str] = None
+    quick_end_details: Optional[dict] = None
 
 
 @dataclass(frozen=True)
