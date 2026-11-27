@@ -225,6 +225,7 @@ class RulePresetResponse(BaseModel):
     description: str
     ruleset_config: dict
     is_system_default: bool
+    owner_user_id: Optional[int] = None
     created_at: Optional[str] = None
 
 

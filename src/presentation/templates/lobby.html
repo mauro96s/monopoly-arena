@@ -21,6 +21,37 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
+    <!-- Barra Rápida: Unirse a Sala Existente por Código -->
+    <div class="lg:col-span-12 p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
+          🔑
+        </div>
+        <div>
+          <h3 class="text-sm font-heading font-bold text-slate-900 dark:text-white">¿Tienes un código de sala?</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Ingresa el código alfanumérico para buscarla y unirte de inmediato.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <input
+          type="text"
+          id="join-code-input"
+          placeholder="Ej: SALA77"
+          maxlength="16"
+          class="w-full sm:w-48 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-mono uppercase text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+          onkeydown="if(event.key==='Enter') lookupAndJoinByCode()"
+        />
+        <button
+          type="button"
+          onclick="lookupAndJoinByCode()"
+          class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-heading font-bold text-xs whitespace-nowrap shadow-sm transition-all flex items-center gap-1.5"
+        >
+          <span>Buscar y Unirme</span>
+          <span>→</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Tarjeta: Crear Nueva Partida (7 Cols) -->
     <div class="lg:col-span-7 bg-white dark:bg-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/90 dark:border-slate-700/80 transition-colors">
       <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 dark:border-slate-700/60">
@@ -545,6 +576,24 @@
       showToast(`Se eliminaron ${data.deleted_count} partidas.`);
     } catch (e) {
       showToast(e.message, 'error');
+    }
+  }
+
+  async function lookupAndJoinByCode() {
+    const code = document.getElementById('join-code-input')?.value?.trim();
+    if (!code) {
+      showToast('Ingresa un código de sala', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/games/by-code/${encodeURIComponent(code)}`);
+      const game = await res.json();
+      if (!res.ok) {
+        throw new Error(game.detail || 'Partida no encontrada');
+      }
+      window.location.href = `/game/${game.id}`;
+    } catch (err) {
+      showToast(err.message, 'error');
     }
   }
 

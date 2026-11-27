@@ -276,3 +276,35 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def assert_can_act_for_player(
+    game: object,
+    target_player: object,
+    current_user: Optional[User] = None,
+) -> None:
+    """
+    Control de autoría multijugador (SRP):
+    - Si target_player.user_id es None (partida local o invitado en mesa), se permite la acción.
+    - Si target_player.user_id tiene un usuario vinculado, exige que current_user esté autenticado
+      y que current_user.id == target_player.user_id (o current_user.id == game.owner_user_id como anfitrión).
+      En caso contrario responde 403 Forbidden.
+    """
+    if not target_player or getattr(target_player, "user_id", None) is None:
+        return
+
+    if not isinstance(current_user, User):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Acción denegada: El jugador '{getattr(target_player, 'name', 'objetivo')}' pertenece a una cuenta registrada. Debes iniciar sesión con esa cuenta o ser el anfitrión de la sala.",
+        )
+
+    is_player_owner = (current_user.id == getattr(target_player, "user_id", None))
+    game_owner = getattr(game, "owner_user_id", None)
+    is_room_host = (game_owner is not None and current_user.id == game_owner)
+
+    if not (is_player_owner or is_room_host):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Acción denegada: No tienes autorización para actuar por el jugador '{getattr(target_player, 'name', 'objetivo')}'. Solo el usuario propietario o el anfitrión pueden ejecutar esta acción.",
+        )

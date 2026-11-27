@@ -26,6 +26,7 @@ from src.presentation.dependencies import (
     get_rule_preset_repository,
     get_theme_repository,
     get_current_user_optional,
+    assert_can_act_for_player,
 )
 from src.presentation.websocket_manager import broadcast_game_event_sync
 from src.application.use_cases.finish_game import FinishGameUseCase
@@ -154,6 +155,7 @@ class ThemeResponse(BaseModel):
     is_official: bool = False
     is_readonly: bool = False
     parent_theme_id: Optional[str] = None
+    owner_user_id: Optional[str] = None
     groups: List[GroupThemeSchema] = []
     tiles: dict[str, TileThemeSchema] = {}
     chance_cards: List[CardThemeSchema] = []
@@ -229,6 +231,7 @@ def list_rule_presets(
             description=p.description,
             ruleset_config=p.ruleset_config.to_dict(),
             is_system_default=p.is_system_default,
+            owner_user_id=p.owner_user_id,
             created_at=p.created_at.isoformat() if p.created_at else None,
         )
         for p in presets
@@ -238,6 +241,7 @@ def list_rule_presets(
 @router.post("/rule-presets", response_model=RulePresetResponse, status_code=status.HTTP_201_CREATED)
 def create_rule_preset(
     payload: CreateRulePresetRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
 ):
     """Crea y guarda un nuevo preset de reglas personalizado."""
@@ -245,6 +249,7 @@ def create_rule_preset(
     if existing:
         raise HTTPException(status_code=400, detail=f"Ya existe un preset con el nombre '{payload.name}'.")
 
+    owner_user_id = current_user.id if isinstance(current_user, User) else None
     cfg = RulesetConfig.from_dict(payload.ruleset_config)
     new_preset = RulePreset(
         id=None,
@@ -252,6 +257,7 @@ def create_rule_preset(
         description=payload.description or "",
         ruleset_config=cfg,
         is_system_default=False,
+        owner_user_id=owner_user_id,
     )
     saved = preset_repo.save(new_preset)
     return RulePresetResponse(
@@ -260,6 +266,7 @@ def create_rule_preset(
         description=saved.description,
         ruleset_config=saved.ruleset_config.to_dict(),
         is_system_default=saved.is_system_default,
+        owner_user_id=saved.owner_user_id,
         created_at=saved.created_at.isoformat() if saved.created_at else None,
     )
 
@@ -267,14 +274,22 @@ def create_rule_preset(
 @router.delete("/rule-presets/{preset_id}", status_code=status.HTTP_200_OK)
 def delete_rule_preset(
     preset_id: int,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     preset_repo: RulePresetRepositoryProtocol = Depends(get_rule_preset_repository),
 ):
-    """Elimina un preset personalizado. No permite eliminar presets predeterminados del sistema."""
+    """Elimina un preset personalizado. No permite eliminar presets del sistema ni de otros usuarios."""
     preset = preset_repo.get_by_id(preset_id)
     if not preset:
         raise HTTPException(status_code=404, detail="Preset no encontrado.")
     if preset.is_system_default:
         raise HTTPException(status_code=400, detail="No se pueden eliminar los presets predeterminados del sistema.")
+
+    if preset.owner_user_id is not None:
+        if not (isinstance(current_user, User) and current_user.id == preset.owner_user_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes autorización para eliminar este preset de reglas creado por otro usuario."
+            )
 
     preset_repo.delete(preset_id)
     return {"success": True, "message": f"Preset '{preset.name}' eliminado con éxito."}
@@ -516,6 +531,7 @@ def advance_turn(
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
     tx_repo: TransactionRepositoryProtocol = Depends(get_transaction_repository),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     game = game_repo.get_by_id(game_id)
     if not game:
@@ -528,6 +544,7 @@ def advance_turn(
         raise HTTPException(status_code=400, detail="No hay jugadores en la partida.")
 
     active_player = players[game.current_player_index % len(players)]
+    assert_can_act_for_player(game, active_player, current_user)
 
     # Regla oficial de Cárcel al pasar turno
     if active_player.in_jail:
@@ -730,6 +747,7 @@ def _build_theme_response(theme: ThemeDefinition) -> ThemeResponse:
         is_official=theme.is_official,
         is_readonly=theme.is_readonly,
         parent_theme_id=theme.parent_theme_id,
+        owner_user_id=theme.owner_user_id,
         groups=[
             GroupThemeSchema(
                 key=g.key,
@@ -834,6 +852,7 @@ def get_theme_by_id(
 def clone_theme(
     theme_id: str,
     payload: Optional[CloneThemeRequest] = None,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
 ):
     """Clona un tema existente (oficial o personalizado) a un nuevo tema editable."""
@@ -862,6 +881,8 @@ def clone_theme(
         for c in base_theme.community_chest_cards
     ]
 
+    owner_user_id = str(current_user.id) if isinstance(current_user, User) else None
+
     new_theme = ThemeDefinition(
         theme_id=target_id,
         name=target_name,
@@ -873,6 +894,7 @@ def clone_theme(
         is_official=False,
         is_readonly=False,
         parent_theme_id=base_theme.theme_id,
+        owner_user_id=owner_user_id,
         groups=cloned_groups,
         tiles=cloned_tiles,
         chance_cards=cloned_chance,
@@ -886,6 +908,7 @@ def clone_theme(
 @router.post("/themes", response_model=ThemeResponse, status_code=status.HTTP_201_CREATED)
 def create_custom_theme(
     payload: SaveThemeRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
 ):
     """Crea y persiste un nuevo tema personalizado."""
@@ -910,6 +933,8 @@ def create_custom_theme(
         for c in payload.community_chest_cards
     ]
 
+    owner_user_id = str(current_user.id) if isinstance(current_user, User) else None
+
     theme = ThemeDefinition(
         theme_id=target_id,
         name=payload.name.strip(),
@@ -920,6 +945,7 @@ def create_custom_theme(
         community_chest_deck_name=payload.community_chest_deck_name or "Arca Comunal",
         is_official=False,
         is_readonly=False,
+        owner_user_id=owner_user_id,
         groups=groups,
         tiles=tiles,
         chance_cards=chance_cards,
@@ -934,6 +960,7 @@ def create_custom_theme(
 def update_custom_theme(
     theme_id: str,
     payload: SaveThemeRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
 ):
     """Actualiza un tema personalizado existente."""
@@ -942,6 +969,13 @@ def update_custom_theme(
         raise HTTPException(status_code=404, detail=f"Tema '{theme_id}' no encontrado.")
     if existing.is_readonly or existing.is_official:
         raise HTTPException(status_code=400, detail=f"El tema '{theme_id}' es protegido y no puede modificarse.")
+
+    if existing.owner_user_id is not None:
+        if not (isinstance(current_user, User) and str(current_user.id) == str(existing.owner_user_id)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes autorización para modificar este tema creado por otro usuario."
+            )
 
     groups = [
         GroupThemeMetadata(key=g.key, name=g.name, color_hex=g.color_hex, text_color=g.text_color, icon=g.icon)
@@ -985,9 +1019,17 @@ def update_custom_theme(
 @router.delete("/themes/{theme_id}", status_code=status.HTTP_200_OK)
 def delete_custom_theme(
     theme_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     theme_repo: ThemeRepositoryProtocol = Depends(get_theme_repository),
 ):
     """Elimina un tema personalizado."""
+    existing = theme_repo.get_by_theme_id(theme_id)
+    if existing and existing.owner_user_id is not None:
+        if not (isinstance(current_user, User) and str(current_user.id) == str(existing.owner_user_id)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes autorización para eliminar este tema creado por otro usuario."
+            )
     try:
         success = theme_repo.delete(theme_id)
         if not success:

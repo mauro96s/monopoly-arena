@@ -18,6 +18,7 @@ class RulePreset:
     description: str
     ruleset_config: RulesetConfig = field(default_factory=RulesetConfig)
     is_system_default: bool = False
+    owner_user_id: Optional[int] = None
     created_at: datetime = field(default_factory=get_utc_now)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -27,5 +28,6 @@ class RulePreset:
             "description": self.description,
             "ruleset_config": self.ruleset_config.to_dict(),
             "is_system_default": self.is_system_default,
+            "owner_user_id": self.owner_user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

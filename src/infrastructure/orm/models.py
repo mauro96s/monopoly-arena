@@ -113,6 +113,7 @@ class RulePresetModel(Base):
     description = Column(String(255), default="", nullable=False)
     ruleset_config = Column(String(1024), default="{}", nullable=False)
     is_system_default = Column(Boolean, default=False, nullable=False)
+    owner_user_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
 
 

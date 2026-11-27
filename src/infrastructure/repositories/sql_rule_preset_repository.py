@@ -24,9 +24,17 @@ class SqlRulePresetRepository(RulePresetRepositoryProtocol):
                     description VARCHAR(255) NOT NULL DEFAULT '',
                     ruleset_config VARCHAR(1024) NOT NULL DEFAULT '{}',
                     is_system_default BOOLEAN NOT NULL DEFAULT 0,
+                    owner_user_id INTEGER NULL,
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
             """))
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+
+        # Migración no destructiva si la columna no existe
+        try:
+            self._session.execute(text("ALTER TABLE rule_presets ADD COLUMN owner_user_id INTEGER NULL"))
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -90,6 +98,7 @@ class SqlRulePresetRepository(RulePresetRepositoryProtocol):
             description=model.description or "",
             ruleset_config=RulesetConfig.from_dict(cfg_dict),
             is_system_default=bool(model.is_system_default),
+            owner_user_id=getattr(model, "owner_user_id", None),
             created_at=model.created_at,
         )
 
@@ -117,6 +126,7 @@ class SqlRulePresetRepository(RulePresetRepositoryProtocol):
                 description=preset.description,
                 ruleset_config=cfg_json,
                 is_system_default=preset.is_system_default,
+                owner_user_id=preset.owner_user_id,
                 created_at=preset.created_at,
             )
             self._session.add(model)
@@ -131,6 +141,7 @@ class SqlRulePresetRepository(RulePresetRepositoryProtocol):
                 model.description = preset.description
                 model.ruleset_config = cfg_json
                 model.is_system_default = preset.is_system_default
+                model.owner_user_id = preset.owner_user_id
                 self._session.commit()
             return preset
 

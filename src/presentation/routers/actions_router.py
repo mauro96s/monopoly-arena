@@ -58,6 +58,12 @@ from src.application.use_cases import (
     MovePlayerByDiceUseCase,
     DrawCardUseCase,
 )
+from src.domain.interfaces.game_repository import GameRepositoryProtocol
+from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
+from src.domain.models.enums import GameStatus
+from src.domain.models.game import Game
+from src.domain.models.player import Player
+from src.domain.models.user import User
 from src.presentation.dependencies import (
     get_game_repository,
     get_player_repository,
@@ -75,10 +81,9 @@ from src.presentation.dependencies import (
     get_roll_dice_use_case,
     get_move_player_by_dice_use_case,
     get_draw_card_use_case,
+    get_current_user_optional,
+    assert_can_act_for_player,
 )
-from src.domain.interfaces.game_repository import GameRepositoryProtocol
-from src.domain.interfaces.player_repository import PlayerRepositoryProtocol
-from src.domain.models.enums import GameStatus
 from src.presentation.websocket_manager import broadcast_game_event_sync
 from src.domain.exceptions import (
     GameNotFoundError,
@@ -92,8 +97,14 @@ from src.domain.exceptions import (
 router = APIRouter(prefix="/games/{game_id}/actions", tags=["Game Actions"])
 
 
-def assert_active_turn(game_id: int, player_id: int, game_repo: GameRepositoryProtocol, player_repo: PlayerRepositoryProtocol):
-    """Garantiza la regla estricta: solo el jugador en turno puede ejecutar acciones."""
+def assert_active_turn(
+    game_id: int,
+    player_id: int,
+    game_repo: GameRepositoryProtocol,
+    player_repo: PlayerRepositoryProtocol,
+    current_user: Optional[User] = None,
+):
+    """Garantiza la regla estricta: solo el jugador en turno puede ejecutar acciones y valida autoría en multijugador."""
     game = game_repo.get_by_id(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Partida no encontrada.")
@@ -112,6 +123,9 @@ def assert_active_turn(game_id: int, player_id: int, game_repo: GameRepositoryPr
             detail=f"Acción bloqueada: No es el turno de {player_name}. Es el turno de {active_player.name}."
         )
 
+    # Validar autoría multijugador
+    assert_can_act_for_player(game, active_player, current_user)
+
 
 @router.post("/roll-dice", response_model=RollDiceResponse, status_code=status.HTTP_200_OK)
 @router.post("/roll-dice/", response_model=RollDiceResponse, status_code=status.HTTP_200_OK, include_in_schema=False)
@@ -120,6 +134,7 @@ def assert_active_turn(game_id: int, player_id: int, game_repo: GameRepositoryPr
 def roll_dice(
     game_id: int,
     payload: Optional[RollDiceRequest] = None,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: RollDiceUseCase = Depends(get_roll_dice_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
@@ -141,7 +156,7 @@ def roll_dice(
     active_player = players[game.current_player_index % len(players)]
     target_player_id = payload.player_id if payload.player_id is not None else active_player.id
 
-    assert_active_turn(game_id, target_player_id, game_repo, player_repo)
+    assert_active_turn(game_id, target_player_id, game_repo, player_repo, current_user)
 
     total_roll = payload.dice_sum if payload.dice_sum is not None else payload.total_roll
     d1 = payload.dice1 if payload.dice1 is not None else payload.dice_1
@@ -207,11 +222,12 @@ def roll_dice(
 def buy_property(
     game_id: int,
     payload: BuyPropertyRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: BuyPropertyUseCase = Depends(get_buy_property_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo, current_user)
     dto = BuyPropertyInputDTO(
         game_id=game_id,
         player_id=payload.player_id,
@@ -312,11 +328,12 @@ def auction_property(
 def pay_rent(
     game_id: int,
     payload: PayRentRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: PayRentUseCase = Depends(get_pay_rent_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.payer_player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.payer_player_id, game_repo, player_repo, current_user)
     dto = PayRentInputDTO(
         game_id=game_id,
         payer_player_id=payload.payer_player_id,
@@ -362,11 +379,12 @@ def pay_rent(
 def build_house(
     game_id: int,
     payload: BuildHouseRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: BuildHouseUseCase = Depends(get_build_house_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo, current_user)
     dto = BuildHouseInputDTO(
         game_id=game_id,
         player_id=payload.player_id,
@@ -407,11 +425,12 @@ def build_house(
 def sell_building(
     game_id: int,
     payload: SellBuildingRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: SellBuildingUseCase = Depends(get_sell_building_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo, current_user)
     dto = SellBuildingInputDTO(
         game_id=game_id,
         player_id=payload.player_id,
@@ -452,8 +471,19 @@ def sell_building(
 def declare_bankruptcy(
     game_id: int,
     payload: DeclareBankruptcyRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: DeclareBankruptcyUseCase = Depends(get_declare_bankruptcy_use_case),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    bankrupt_player = player_repo.get_by_id(payload.bankrupt_player_id)
+    if not bankrupt_player:
+        raise HTTPException(status_code=404, detail="Jugador quebrado no encontrado.")
+    assert_can_act_for_player(game, bankrupt_player, current_user)
+
     dto = DeclareBankruptcyInputDTO(
         game_id=game_id,
         bankrupt_player_id=payload.bankrupt_player_id,
@@ -498,11 +528,12 @@ def declare_bankruptcy(
 def mortgage_property(
     game_id: int,
     payload: MortgageRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: MortgagePropertyUseCase = Depends(get_mortgage_property_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo, current_user)
     dto = MortgageInputDTO(
         game_id=game_id,
         player_id=payload.player_id,
@@ -538,6 +569,7 @@ def mortgage_property(
 def jail_action(
     game_id: int,
     payload: JailActionRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: JailActionUseCase = Depends(get_jail_action_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
@@ -553,7 +585,7 @@ def jail_action(
     active_player = players[game.current_player_index % len(players)]
     target_player_id = payload.player_id if payload.player_id is not None else active_player.id
 
-    assert_active_turn(game_id, target_player_id, game_repo, player_repo)
+    assert_active_turn(game_id, target_player_id, game_repo, player_repo, current_user)
     auto_advance = payload.auto_advance_turn if payload.auto_advance_turn is not None else (True if payload.action == "GO_TO_JAIL" else False)
     dto = JailActionInputDTO(
         game_id=game_id,
@@ -601,11 +633,12 @@ def jail_action(
 def bank_action(
     game_id: int,
     payload: BankActionRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: BankActionUseCase = Depends(get_bank_action_use_case),
     game_repo: GameRepositoryProtocol = Depends(get_game_repository),
     player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
-    assert_active_turn(game_id, payload.player_id, game_repo, player_repo)
+    assert_active_turn(game_id, payload.player_id, game_repo, player_repo, current_user)
     dto = BankActionInputDTO(
         game_id=game_id,
         player_id=payload.player_id,
@@ -726,9 +759,20 @@ def finish_game_action(
 def draw_card_action(
     game_id: int,
     payload: DrawCardRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     use_case: DrawCardUseCase = Depends(get_draw_card_use_case),
+    game_repo: GameRepositoryProtocol = Depends(get_game_repository),
+    player_repo: PlayerRepositoryProtocol = Depends(get_player_repository),
 ):
     """Roba y ejecuta una carta de Fortuna o Arca Comunal (Manual / Auditoría)."""
+    game = game_repo.get_by_id(game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    player = player_repo.get_by_id(payload.player_id)
+    if not player or player.game_id != game.id:
+        raise HTTPException(status_code=404, detail="Jugador no encontrado.")
+    assert_can_act_for_player(game, player, current_user)
+
     dto = DrawCardInputDTO(
         game_id=game_id,
         player_id=payload.player_id,

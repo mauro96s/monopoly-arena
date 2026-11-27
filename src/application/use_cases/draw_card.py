@@ -190,6 +190,87 @@ class PayToAllStrategy:
         )
 
 
+def _evaluate_destination_tile(
+    ctx: CardExecutionContext,
+    dest_pos: int,
+    rent_multiplier: int = 1,
+    force_utility_multiplier: bool = False,
+) -> tuple[Optional[str], Optional[Dict[str, Any]], int]:
+    """
+    Evalúa la casilla a la que se desplazó el jugador por efecto de una carta:
+    - Si es una propiedad sin dueño, prepara la acción BUY_PROPERTY.
+    - Si tiene dueño rival, liquida la renta correspondiente (normal o multiplicada).
+    """
+    board = BoardRuleRegistry.get_board(ctx.game.variant)
+    tile_strategy = next((s for s in board.values() if s.definition.position == dest_pos), None)
+    if not tile_strategy:
+        return None, None, 0
+
+    t_def = tile_strategy.definition
+    purchasables = {t.tile_id for t in BoardRuleRegistry.get_purchasable_tiles(ctx.game.variant)}
+    if t_def.tile_id not in purchasables:
+        return None, None, 0
+
+    prop = ctx.property_repo.get_by_tile(ctx.game.id, t_def.tile_id)
+    if not prop or prop.owner_id is None:
+        tile_action = "BUY_PROPERTY"
+        tile_details = {
+            "price": t_def.price,
+            "tile_id": t_def.tile_id,
+            "tile_name": t_def.name,
+            "can_afford": ctx.player.can_afford(t_def.price),
+        }
+        return tile_action, tile_details, 0
+    elif prop.owner_id == ctx.player.id:
+        return "OWNED_BY_SELF", {"tile_id": t_def.tile_id, "tile_name": t_def.name}, 0
+    else:
+        # Dueño es rival
+        if prop.is_mortgaged:
+            return "MORTGAGED_NO_RENT", {"tile_id": t_def.tile_id, "tile_name": t_def.name}, 0
+
+        owner = ctx.player_repo.get_by_id(prop.owner_id)
+        all_props = ctx.property_repo.list_by_owner(ctx.game.id, prop.owner_id)
+
+        if force_utility_multiplier or "UTILITY" in t_def.tile_type.value:
+            calculated_rent = rent_multiplier * ctx.effective_roll if force_utility_multiplier else tile_strategy.calculate_rent(prop, all_props, ctx.effective_roll)
+        else:
+            base_rent = tile_strategy.calculate_rent(prop, all_props, ctx.effective_roll)
+            calculated_rent = base_rent * rent_multiplier
+
+        rent_to_pay = min(ctx.player.money, calculated_rent)
+        net_rent_paid = 0
+        if rent_to_pay > 0:
+            ctx.player.deduct_money(rent_to_pay)
+            if owner:
+                owner.add_money(rent_to_pay)
+                ctx.player_repo.save(owner)
+            ctx.player_repo.save(ctx.player)
+            net_rent_paid = rent_to_pay
+
+        ctx.tx_repo.record(
+            Transaction(
+                id=None,
+                game_id=ctx.game.id,
+                turn_number=ctx.game.current_turn,
+                transaction_type=TransactionType.PAY_RENT,
+                amount=rent_to_pay,
+                description=f"🏠 {ctx.player.name} pagó ${rent_to_pay} de renta a {owner.name if owner else 'rival'} en {t_def.name}" + (f" (x{rent_multiplier})" if rent_multiplier > 1 else ""),
+                source_player_id=ctx.player.id,
+                target_player_id=owner.id if owner else None,
+                tile_id=t_def.tile_id,
+            )
+        )
+        tile_action = "SPECIAL_RENT_PAID" if rent_multiplier > 1 else "RENT_PAID"
+        tile_details = {
+            "tile_id": t_def.tile_id,
+            "tile_name": t_def.name,
+            "rent_paid": rent_to_pay,
+            "multiplier": rent_multiplier,
+            "owner_id": prop.owner_id,
+        }
+        return tile_action, tile_details, net_rent_paid
+
+
 class MoveToPositionStrategy:
     def execute(self, ctx: CardExecutionContext) -> CardExecutionResult:
         old_pos = ctx.player.position
@@ -220,6 +301,8 @@ class MoveToPositionStrategy:
         ctx.player.position = target_pos
         ctx.player_repo.save(ctx.player)
 
+        tile_action, tile_details, net_rent = _evaluate_destination_tile(ctx, target_pos)
+
         tx_type = TransactionType.CHANCE_CARD if ctx.card.deck == DeckType.CHANCE else TransactionType.COMMUNITY_CHEST_CARD
         tx = ctx.tx_repo.record(
             Transaction(
@@ -236,10 +319,12 @@ class MoveToPositionStrategy:
         )
 
         return CardExecutionResult(
-            amount_delta=salary_paid,
+            amount_delta=salary_paid - net_rent,
             old_position=old_pos,
             new_position=target_pos,
             passed_go=passed_go,
+            landed_tile_action=tile_action,
+            landed_tile_details=tile_details,
             tx_id=tx.id,
             audit_description=tx.description,
         )
@@ -262,6 +347,8 @@ class MoveRelativeStrategy:
         ctx.player.position = new_pos
         ctx.player_repo.save(ctx.player)
 
+        tile_action, tile_details, net_rent = _evaluate_destination_tile(ctx, new_pos)
+
         tx_type = TransactionType.CHANCE_CARD if ctx.card.deck == DeckType.CHANCE else TransactionType.COMMUNITY_CHEST_CARD
         tx = ctx.tx_repo.record(
             Transaction(
@@ -278,10 +365,12 @@ class MoveRelativeStrategy:
         )
 
         return CardExecutionResult(
-            amount_delta=salary_paid,
+            amount_delta=salary_paid - net_rent,
             old_position=old_pos,
             new_position=new_pos,
             passed_go=passed_go,
+            landed_tile_action=tile_action,
+            landed_tile_details=tile_details,
             tx_id=tx.id,
             audit_description=tx.description,
         )
@@ -328,74 +417,13 @@ class MoveNearestTypeStrategy:
         ctx.player.position = dest_pos
         ctx.player_repo.save(ctx.player)
 
-        # Evaluar la casilla de destino para renta especial o compra
-        board = BoardRuleRegistry.get_board(ctx.game.variant)
-        tile_strategy = next((s for s in board.values() if s.definition.position == dest_pos), None)
-        tile_action = None
-        tile_details = None
-        net_rent_paid = 0
-
-        if tile_strategy:
-            t_def = tile_strategy.definition
-            prop = ctx.property_repo.get_by_tile(ctx.game.id, t_def.tile_id)
-            if not prop or prop.owner_id is None:
-                tile_action = "BUY_PROPERTY"
-                tile_details = {
-                    "price": t_def.price,
-                    "tile_id": t_def.tile_id,
-                    "tile_name": t_def.name,
-                    "can_afford": ctx.player.can_afford(t_def.price),
-                }
-            elif prop.owner_id == ctx.player.id:
-                tile_action = "OWNED_BY_SELF"
-                tile_details = {"tile_id": t_def.tile_id, "tile_name": t_def.name}
-            else:
-                # Dueño es rival
-                if prop.is_mortgaged:
-                    tile_action = "MORTGAGED_NO_RENT"
-                    tile_details = {"tile_id": t_def.tile_id, "tile_name": t_def.name}
-                else:
-                    owner = ctx.player_repo.get_by_id(prop.owner_id)
-                    all_props = ctx.property_repo.list_by_owner(ctx.game.id, prop.owner_id)
-                    
-                    if "UTILITY" in target_type:
-                        # 10 veces el resultado de los dados
-                        calculated_rent = multiplier * ctx.effective_roll
-                    else:
-                        # Doble de la renta debida
-                        base_rent = tile_strategy.calculate_rent(prop, all_props, ctx.effective_roll)
-                        calculated_rent = base_rent * multiplier
-
-                    rent_to_pay = min(ctx.player.money, calculated_rent)
-                    if rent_to_pay > 0:
-                        ctx.player.deduct_money(rent_to_pay)
-                        if owner:
-                            owner.add_money(rent_to_pay)
-                            ctx.player_repo.save(owner)
-                        ctx.player_repo.save(ctx.player)
-                        net_rent_paid = rent_to_pay
-
-                    ctx.tx_repo.record(
-                        Transaction(
-                            id=None,
-                            game_id=ctx.game.id,
-                            turn_number=ctx.game.current_turn,
-                            transaction_type=TransactionType.PAY_RENT,
-                            amount=rent_to_pay,
-                            description=f"🏠 {ctx.player.name} pagó ${rent_to_pay} de renta especial (x{multiplier}) a {owner.name if owner else 'rival'} en {t_def.name}",
-                            source_player_id=ctx.player.id,
-                            target_player_id=owner.id if owner else None,
-                            tile_id=t_def.tile_id,
-                        )
-                    )
-                    tile_action = "SPECIAL_RENT_PAID"
-                    tile_details = {
-                        "tile_id": t_def.tile_id,
-                        "tile_name": t_def.name,
-                        "rent_paid": rent_to_pay,
-                        "multiplier": multiplier,
-                        "owner_id": prop.owner_id,
-                    }
+        is_utility = "UTILITY" in target_type
+        tile_action, tile_details, net_rent = _evaluate_destination_tile(
+            ctx,
+            dest_pos,
+            rent_multiplier=multiplier,
+            force_utility_multiplier=is_utility,
+        )
 
         tx_type = TransactionType.CHANCE_CARD if ctx.card.deck == DeckType.CHANCE else TransactionType.COMMUNITY_CHEST_CARD
         tx = ctx.tx_repo.record(
@@ -413,7 +441,7 @@ class MoveNearestTypeStrategy:
         )
 
         return CardExecutionResult(
-            amount_delta=salary_paid - net_rent_paid,
+            amount_delta=salary_paid - net_rent,
             old_position=old_pos,
             new_position=dest_pos,
             passed_go=passed_go,
